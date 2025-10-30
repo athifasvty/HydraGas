@@ -107,24 +107,14 @@ const HistoryStack = () => {
   );
 };
 
-// Stack untuk Profile
+// Stack untuk Profile - ✅ TANPA HEADER (karena ProfileScreen punya header sendiri)
 const ProfileStack = () => {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-        },
-        headerTintColor: COLORS.white,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
+    <Stack.Navigator>
       <Stack.Screen
         name="ProfileMain"
         component={ProfileScreen}
-        options={{ title: 'Profile' }}
+        options={{ headerShown: false }} // ✅ HIDE HEADER
       />
     </Stack.Navigator>
   );
