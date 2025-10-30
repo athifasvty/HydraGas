@@ -2,6 +2,9 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// ✅ Tambahan untuk react-native-vector-icons
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+
 react {
     autolinkLibrariesWithApp()
 }
@@ -14,6 +17,7 @@ android {
 
     compileSdk rootProject.ext.compileSdkVersion
     ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
 
     defaultConfig {
         applicationId "com.hydragas"
@@ -53,7 +57,7 @@ android {
 dependencies {
     implementation("com.facebook.react:react-android")
 
-    // ✅ Hermes atau JSC
+    // ✅ Pilih antara Hermes atau JSC
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
