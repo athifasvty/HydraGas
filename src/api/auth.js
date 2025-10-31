@@ -9,15 +9,16 @@ import apiClient from './client';
 export const login = async (username, password) => {
   try {
     console.log('=== LOGIN DEBUG ===');
-    console.log('URL:', apiClient.defaults.baseURL + '/api/auth/login.php');
+    console.log('Base URL:', apiClient.defaults.baseURL);
+    console.log('Full URL:', apiClient.defaults.baseURL + '/auth/login.php');
     console.log('Data:', { username, password });
     
-    const response = await apiClient.post('/api/auth/login.php', { // ✅ TAMBAH /api
+    const response = await apiClient.post('/auth/login.php', {
       username,
       password,
     });
     
-    console.log('Response:', response);
+    console.log('✅ Login Response:', response);
     return response;
   } catch (error) {
     console.error('=== LOGIN ERROR ===');
@@ -34,12 +35,13 @@ export const login = async (username, password) => {
 export const register = async (data) => {
   try {
     console.log('=== REGISTER DEBUG ===');
-    console.log('URL:', apiClient.defaults.baseURL + '/api/auth/register.php');
+    console.log('Base URL:', apiClient.defaults.baseURL);
+    console.log('Full URL:', apiClient.defaults.baseURL + '/auth/register.php');
     console.log('Data:', data);
     
-    const response = await apiClient.post('/api/auth/register.php', data); // ✅ TAMBAH /api
+    const response = await apiClient.post('/auth/register.php', data);
     
-    console.log('Response:', response);
+    console.log('✅ Register Response:', response);
     return response;
   } catch (error) {
     console.error('=== REGISTER ERROR ===');

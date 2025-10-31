@@ -11,6 +11,8 @@ import OrderScreen from '../screens/customer/OrderScreen';
 import OrderDetailScreen from '../screens/customer/OrderDetailScreen';
 import HistoryScreen from '../screens/customer/HistoryScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
+import EditProfileScreen from '../screens/customer/EditProfileScreen';
+import ChangePasswordScreen from '../screens/customer/ChangePasswordScreen';
 
 import { SCREENS, COLORS } from '../utils/constants';
 import { useCart } from '../context/CartContext';
@@ -110,11 +112,33 @@ const HistoryStack = () => {
 // Stack untuk Profile - ✅ TANPA HEADER (karena ProfileScreen punya header sendiri)
 const ProfileStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: COLORS.primary,
+        },
+        headerTintColor: COLORS.white,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
       <Stack.Screen
         name="ProfileMain"
         component={ProfileScreen}
-        options={{ headerShown: false }} // ✅ HIDE HEADER
+        options={{ headerShown: false }}
+      />
+      {/* ✅ TAMBAH ROUTE EDIT PROFILE */}
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: 'Edit Profile' }}
+      />
+      {/* ✅ TAMBAH ROUTE CHANGE PASSWORD */}
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{ title: 'Ganti Password' }}
       />
     </Stack.Navigator>
   );

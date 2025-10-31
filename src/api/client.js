@@ -1,9 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Ganti dengan IP address laptop/server kamu
-// Cek IP: ipconfig (Windows) atau ifconfig (Mac/Linux)
-const API_URL = 'http://192.168.117.206/api_gas_galon'; // 👈 GANTI INI
+// 👇 PASTIKAN ADA /api DI AKHIR
+const API_URL = 'http://192.168.189.206/api_gas_galon/api';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -54,7 +53,6 @@ apiClient.interceptors.response.use(
     if (status === 401) {
       // Clear token dan redirect ke login
       await AsyncStorage.multiRemove(['token', 'user']);
-      // NavigationService bisa dipanggil di sini kalau sudah setup
       return Promise.reject({
         success: false,
         message: 'Sesi Anda telah berakhir. Silakan login kembali.',
