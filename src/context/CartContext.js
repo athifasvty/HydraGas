@@ -32,10 +32,14 @@ export const CartProvider = ({ children }) => {
       setIsLoading(true);
       const storedCart = await AsyncStorage.getItem(CART_STORAGE_KEY);
       if (storedCart) {
-        setCartItems(JSON.parse(storedCart));
+        const parsed = JSON.parse(storedCart);
+        console.log('🛒 Cart loaded:', parsed.length, 'items');
+        setCartItems(parsed);
+      } else {
+        console.log('🛒 Cart is empty');
       }
     } catch (error) {
-      console.error('Error loading cart:', error);
+      console.error('❌ Error loading cart:', error);
     } finally {
       setIsLoading(false);
     }
@@ -47,8 +51,9 @@ export const CartProvider = ({ children }) => {
   const saveCart = async () => {
     try {
       await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+      console.log('💾 Cart saved:', cartItems.length, 'items');
     } catch (error) {
-      console.error('Error saving cart:', error);
+      console.error('❌ Error saving cart:', error);
     }
   };
 
@@ -58,8 +63,9 @@ export const CartProvider = ({ children }) => {
    * @param {number} quantity
    */
   const addToCart = (product, quantity = 1) => {
+    console.log('➕ Adding to cart:', product.nama_produk, 'x', quantity);
+    
     setCartItems((prevItems) => {
-      // Cek apakah produk sudah ada di cart
       const existingItem = prevItems.find((item) => item.id === product.id);
 
       if (existingItem) {
@@ -91,6 +97,7 @@ export const CartProvider = ({ children }) => {
    * @param {number} productId
    */
   const removeFromCart = (productId) => {
+    console.log('🗑️ Removing from cart:', productId);
     setCartItems((prevItems) =>
       prevItems.filter((item) => item.id !== productId)
     );
@@ -144,6 +151,7 @@ export const CartProvider = ({ children }) => {
    * Clear cart
    */
   const clearCart = () => {
+    console.log('🧹 Clearing cart');
     setCartItems([]);
   };
 
@@ -183,10 +191,14 @@ export const CartProvider = ({ children }) => {
    * Get cart items for API (format untuk backend)
    */
   const getCartItemsForAPI = () => {
-    return cartItems.map((item) => ({
-      id_produk: item.id,
-      jumlah: item.quantity,
+    const apiFormat = cartItems.map((item) => ({
+      id_produk: parseInt(item.id), // Pastikan integer
+      jumlah: parseInt(item.quantity), // Pastikan integer
     }));
+    
+    console.log('📤 Cart items for API:', JSON.stringify(apiFormat, null, 2));
+    
+    return apiFormat;
   };
 
   // Context value

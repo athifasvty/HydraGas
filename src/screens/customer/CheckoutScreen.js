@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { createPesanan } from '../../api/customer';
@@ -16,18 +17,70 @@ import { formatCurrency } from '../../utils/formatters';
 import { COLORS, SIZES, PAYMENT_METHODS, PAYMENT_LABELS } from '../../utils/constants';
 
 const CheckoutScreen = ({ navigation }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { cartItems, getTotalPrice, getCartItemsForAPI, clearCart } = useCart();
 
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS.CASH);
   const [loading, setLoading] = useState(false);
 
+  // Check auth on mount
+  useEffect(() => {
+    checkAuthentication();
+  }, []);
+
+  // Check if user is authenticated
+  const checkAuthentication = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userData = await AsyncStorage.getItem('user');
+      
+      console.log('🔐 Auth Check:');
+      console.log('- Token:', token ? 'EXISTS ✅' : 'MISSING ❌');
+      console.log('- User:', userData ? 'EXISTS ✅' : 'MISSING ❌');
+      
+      if (!token || !userData) {
+        Alert.alert(
+          'Sesi Berakhir',
+          'Silakan login kembali untuk melanjutkan',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                logout();
+                // Navigation will be handled by AuthContext
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('❌ Auth check error:', error);
+    }
+  };
+
+  // Validate before checkout
+  const validateCheckout = () => {
+    if (cartItems.length === 0) {
+      Alert.alert('Keranjang Kosong', 'Tambahkan produk terlebih dahulu');
+      return false;
+    }
+
+    if (!selectedPayment) {
+      Alert.alert('Pilih Metode Pembayaran', 'Silakan pilih metode pembayaran terlebih dahulu');
+      return false;
+    }
+
+    if (!user || !user.name || !user.phone || !user.address) {
+      Alert.alert('Data Tidak Lengkap', 'Lengkapi profile Anda terlebih dahulu');
+      return false;
+    }
+
+    return true;
+  };
+
   // Handle checkout
   const handleCheckout = async () => {
-    if (cartItems.length === 0) {
-      Alert.alert('Error', 'Keranjang kosong');
-      return;
-    }
+    if (!validateCheckout()) return;
 
     Alert.alert(
       'Konfirmasi Pesanan',
@@ -47,12 +100,30 @@ const CheckoutScreen = ({ navigation }) => {
     try {
       setLoading(true);
 
-      const data = {
+      // Final auth check
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        throw {
+          success: false,
+          message: 'Token tidak ditemukan. Silakan login kembali.',
+          needsLogin: true,
+        };
+      }
+
+      console.log('=== SUBMIT ORDER ===');
+      console.log('🛒 Cart Items:', cartItems.length, 'items');
+      console.log('💳 Payment Method:', selectedPayment);
+
+      const orderData = {
         items: getCartItemsForAPI(),
         metode_bayar: selectedPayment,
       };
 
-      const response = await createPesanan(data);
+      console.log('📤 Order Data:', JSON.stringify(orderData, null, 2));
+
+      const response = await createPesanan(orderData);
+
+      console.log('✅ Order Response:', response);
 
       if (response.success) {
         // Clear cart
@@ -60,26 +131,64 @@ const CheckoutScreen = ({ navigation }) => {
 
         // Show success
         Alert.alert(
-          'Pesanan Berhasil!',
-          `Pesanan Anda sedang diproses.\nNomor Pesanan: #${response.data.id_pesanan}`,
+          'Pesanan Berhasil! 🎉',
+          `Nomor Pesanan: #${response.data.id_pesanan}\nTotal: ${formatCurrency(response.data.total_harga)}\n\nPesanan Anda sedang diproses.`,
           [
             {
               text: 'Lihat Pesanan',
               onPress: () => {
+                // Reset navigation to home, then go to orders
                 navigation.reset({
                   index: 0,
                   routes: [{ name: 'CustomerHome' }],
                 });
-                navigation.navigate('CustomerOrders');
+                
+                // Delay navigation to orders tab
+                setTimeout(() => {
+                  navigation.getParent()?.navigate('CustomerOrders');
+                }, 100);
               },
             },
           ]
         );
       } else {
-        Alert.alert('Error', response.message || 'Gagal membuat pesanan');
+        throw {
+          success: false,
+          message: response.message || 'Gagal membuat pesanan',
+        };
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Terjadi kesalahan');
+      console.error('❌ Submit Order Error:', error);
+
+      // Handle token/login errors
+      if (error.needsLogin) {
+        Alert.alert(
+          'Sesi Berakhir',
+          'Silakan login kembali',
+          [
+            {
+              text: 'OK',
+              onPress: async () => {
+                await logout();
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // Show error message
+      Alert.alert(
+        'Gagal Membuat Pesanan',
+        error.message || 'Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.',
+        [
+          { text: 'OK' },
+          {
+            text: 'Coba Lagi',
+            onPress: () => submitOrder(),
+          }
+        ]
+      );
     } finally {
       setLoading(false);
     }
@@ -149,9 +258,9 @@ const CheckoutScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Alamat Pengiriman</Text>
           </View>
           <View style={styles.deliveryInfo}>
-            <Text style={styles.userName}>{user?.name}</Text>
-            <Text style={styles.userPhone}>{user?.phone}</Text>
-            <Text style={styles.userAddress}>{user?.address}</Text>
+            <Text style={styles.userName}>{user?.name || '-'}</Text>
+            <Text style={styles.userPhone}>{user?.phone || '-'}</Text>
+            <Text style={styles.userAddress}>{user?.address || '-'}</Text>
           </View>
         </View>
 

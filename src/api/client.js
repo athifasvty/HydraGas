@@ -1,13 +1,13 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// 👇 PASTIKAN ADA /api DI AKHIR
-const API_URL = 'http://192.168.189.206/api_gas_galon/api';
+// Base URL API
+const API_URL = 'http://192.168.18.16/api_gas_galon/api';
 
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 15000, // Increase timeout ke 15 detik
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -19,15 +19,24 @@ apiClient.interceptors.request.use(
   async (config) => {
     try {
       const token = await AsyncStorage.getItem('token');
+      
       if (token) {
+        // Format: "Bearer TOKEN"
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('✅ Token attached to request');
+      } else {
+        console.log('⚠️ No token found in storage');
       }
     } catch (error) {
-      console.error('Error getting token:', error);
+      console.error('❌ Error getting token:', error);
     }
+    
+    console.log('📤 Request:', config.method.toUpperCase(), config.url);
+    
     return config;
   },
   (error) => {
+    console.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -35,10 +44,13 @@ apiClient.interceptors.request.use(
 // Response interceptor - handle errors globally
 apiClient.interceptors.response.use(
   (response) => {
+    console.log('✅ Response received:', response.config.url);
     // Return data langsung kalau success
     return response.data;
   },
   async (error) => {
+    console.error('❌ Response error:', error.response?.status, error.message);
+    
     // Handle network error
     if (!error.response) {
       return Promise.reject({
@@ -51,11 +63,14 @@ apiClient.interceptors.response.use(
 
     // Handle 401 Unauthorized (token expired/invalid)
     if (status === 401) {
+      console.log('🚨 Unauthorized - Clearing token');
       // Clear token dan redirect ke login
       await AsyncStorage.multiRemove(['token', 'user']);
+      
       return Promise.reject({
         success: false,
-        message: 'Sesi Anda telah berakhir. Silakan login kembali.',
+        message: data?.message || 'Sesi Anda telah berakhir. Silakan login kembali.',
+        needsLogin: true, // Flag untuk handle di UI
       });
     }
 
@@ -63,7 +78,15 @@ apiClient.interceptors.response.use(
     if (status === 403) {
       return Promise.reject({
         success: false,
-        message: 'Akses ditolak. Anda tidak memiliki izin.',
+        message: data?.message || 'Akses ditolak. Anda tidak memiliki izin.',
+      });
+    }
+
+    // Handle 404 Not Found
+    if (status === 404) {
+      return Promise.reject({
+        success: false,
+        message: 'Endpoint tidak ditemukan. Periksa konfigurasi API.',
       });
     }
 
@@ -71,7 +94,7 @@ apiClient.interceptors.response.use(
     if (status === 500) {
       return Promise.reject({
         success: false,
-        message: 'Terjadi kesalahan pada server. Silakan coba lagi nanti.',
+        message: data?.message || 'Terjadi kesalahan pada server. Silakan coba lagi nanti.',
       });
     }
 
