@@ -2,14 +2,22 @@ import apiClient from './client';
 
 /**
  * Get List Pesanan Kurir
- * @param {Object} params - {status: 'diproses'|'dikirim', id: 123}
+ * @param {Object} params - {status: 'diproses'|'dikirim'|'selesai', id: 123}
  * @returns {Promise}
  */
 export const getPesananKurir = async (params = {}) => {
   try {
+    console.log('📤 getPesananKurir called with params:', params);
+    console.log('🔗 Full URL:', apiClient.defaults.baseURL + '/kurir/pesanan.php');
+    
     const response = await apiClient.get('/kurir/pesanan.php', { params });
+    
+    console.log('📥 getPesananKurir response:', response);
+    
     return response;
   } catch (error) {
+    console.error('❌ getPesananKurir error:', error);
+    console.error('❌ Error response:', error.response?.data);
     throw error;
   }
 };

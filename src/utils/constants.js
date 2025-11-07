@@ -3,7 +3,7 @@
  * Ganti IP_ADDRESS dengan IP laptop kamu
  */
 export const API_CONFIG = {
-  BASE_URL: 'http://192.168.18.16/api_gas_galon/api', // 👈 GANTI INI
+  BASE_URL: 'http://10.79.187.206/api_gas_galon/api', // 👈 GANTI INI
   TIMEOUT: 10000,
 };
 
