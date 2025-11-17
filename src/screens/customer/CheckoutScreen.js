@@ -14,7 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { createPesanan } from '../../api/customer';
 import { formatCurrency } from '../../utils/formatters';
-import { COLORS, SIZES, PAYMENT_METHODS, PAYMENT_LABELS } from '../../utils/constants';
+import { COLORS, SIZES, PAYMENT_METHODS, PAYMENT_LABELS, ONGKIR_FLAT } from '../../utils/constants';
 
 const CheckoutScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
@@ -22,6 +22,11 @@ const CheckoutScreen = ({ navigation }) => {
 
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS.CASH);
   const [loading, setLoading] = useState(false);
+
+  // Calculate prices
+  const subtotal = getTotalPrice();
+  const ongkir = ONGKIR_FLAT;
+  const total = subtotal + ongkir;
 
   // Check auth on mount
   useEffect(() => {
@@ -84,7 +89,7 @@ const CheckoutScreen = ({ navigation }) => {
 
     Alert.alert(
       'Konfirmasi Pesanan',
-      `Total: ${formatCurrency(getTotalPrice())}\nMetode: ${PAYMENT_LABELS[selectedPayment]}\n\nLanjutkan pesanan?`,
+      `Subtotal: ${formatCurrency(subtotal)}\nOngkir: ${formatCurrency(ongkir)}\nTotal: ${formatCurrency(total)}\nMetode: ${PAYMENT_LABELS[selectedPayment]}\n\nLanjutkan pesanan?`,
       [
         { text: 'Batal', style: 'cancel' },
         {
@@ -113,10 +118,12 @@ const CheckoutScreen = ({ navigation }) => {
       console.log('=== SUBMIT ORDER ===');
       console.log('🛒 Cart Items:', cartItems.length, 'items');
       console.log('💳 Payment Method:', selectedPayment);
+      console.log('🚚 Ongkir:', ongkir);
 
       const orderData = {
         items: getCartItemsForAPI(),
         metode_bayar: selectedPayment,
+        ongkir: ongkir, // Kirim ongkir ke backend
       };
 
       console.log('📤 Order Data:', JSON.stringify(orderData, null, 2));
@@ -132,7 +139,7 @@ const CheckoutScreen = ({ navigation }) => {
         // Show success
         Alert.alert(
           'Pesanan Berhasil! 🎉',
-          `Nomor Pesanan: #${response.data.id_pesanan}\nTotal: ${formatCurrency(response.data.total_harga)}\n\nPesanan Anda sedang diproses.`,
+          `Nomor Pesanan: #${response.data.id_pesanan}\nSubtotal: ${formatCurrency(response.data.subtotal)}\nOngkir: ${formatCurrency(response.data.ongkir)}\nTotal: ${formatCurrency(response.data.total_harga)}\n\nPesanan Anda sedang diproses.`,
           [
             {
               text: 'Lihat Pesanan',
@@ -307,18 +314,21 @@ const CheckoutScreen = ({ navigation }) => {
                 Subtotal ({cartItems.length} item)
               </Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(getTotalPrice())}
+                {formatCurrency(subtotal)}
               </Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Biaya Pengiriman</Text>
-              <Text style={styles.summaryValue}>Gratis</Text>
+              <View style={styles.ongkirContainer}>
+                <Icon name="car-outline" size={18} color={COLORS.textLight} />
+                <Text style={styles.summaryLabel}>Ongkos Kirim</Text>
+              </View>
+              <Text style={styles.summaryValue}>{formatCurrency(ongkir)}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
-              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalLabel}>Total Pembayaran</Text>
               <Text style={styles.totalValue}>
-                {formatCurrency(getTotalPrice())}
+                {formatCurrency(total)}
               </Text>
             </View>
           </View>
@@ -330,7 +340,7 @@ const CheckoutScreen = ({ navigation }) => {
         <View style={styles.footerInfo}>
           <Text style={styles.footerLabel}>Total Pembayaran</Text>
           <Text style={styles.footerAmount}>
-            {formatCurrency(getTotalPrice())}
+            {formatCurrency(total)}
           </Text>
         </View>
         <TouchableOpacity
@@ -461,6 +471,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: SIZES.sm,
+  },
+  ongkirContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   summaryLabel: {
     fontSize: SIZES.fontMd,

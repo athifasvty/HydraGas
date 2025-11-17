@@ -149,7 +149,10 @@ const HistoryScreen = ({ navigation }) => {
       <TouchableOpacity
         style={styles.historyCard}
         onPress={() =>
-          navigation.navigate('CustomerOrderDetail', { orderId: item.id })
+          navigation.navigate('CustomerOrderDetail', { 
+            orderId: item.id, 
+            fromHistory: true 
+          })
         }
       >
         {/* Header */}

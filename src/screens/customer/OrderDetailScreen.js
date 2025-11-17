@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { getPesananAktif } from '../../api/customer';
+import { getPesananAktif, getRiwayat } from '../../api/customer';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import {
   COLORS,
@@ -20,7 +20,7 @@ import {
 } from '../../utils/constants';
 
 const OrderDetailScreen = ({ route, navigation }) => {
-  const { orderId } = route.params;
+  const { orderId, fromHistory } = route.params;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,17 +31,37 @@ const OrderDetailScreen = ({ route, navigation }) => {
       setLoading(true);
       setError(null);
 
-      const response = await getPesananAktif();
-
-      if (response.success) {
-        const foundOrder = response.data.find((o) => o.id === orderId);
-        if (foundOrder) {
-          setOrder(foundOrder);
+      let response;
+      
+      // Cek dari mana user datang
+      if (fromHistory) {
+        // Dari history, fetch dari API riwayat
+        response = await getRiwayat();
+        
+        if (response.success) {
+          const foundOrder = response.data.riwayat?.find((o) => o.id === orderId);
+          if (foundOrder) {
+            setOrder(foundOrder);
+          } else {
+            setError('Pesanan tidak ditemukan');
+          }
         } else {
-          setError('Pesanan tidak ditemukan');
+          setError(response.message || 'Gagal mengambil data pesanan');
         }
       } else {
-        setError(response.message || 'Gagal mengambil data pesanan');
+        // Dari pesanan aktif, fetch dari API pesanan aktif
+        response = await getPesananAktif();
+        
+        if (response.success) {
+          const foundOrder = response.data.find((o) => o.id === orderId);
+          if (foundOrder) {
+            setOrder(foundOrder);
+          } else {
+            setError('Pesanan tidak ditemukan');
+          }
+        } else {
+          setError(response.message || 'Gagal mengambil data pesanan');
+        }
       }
     } catch (err) {
       setError(err.message || 'Terjadi kesalahan');
@@ -79,7 +99,9 @@ const OrderDetailScreen = ({ route, navigation }) => {
               <View style={styles.timelineDot} />
             )}
           </View>
-          {status !== 'selesai' && <View style={styles.timelineLine} />}
+          {status !== 'selesai' && status !== 'dibatalkan' && (
+            <View style={styles.timelineLine} />
+          )}
         </View>
         <View style={styles.timelineContent}>
           <Text
@@ -98,6 +120,16 @@ const OrderDetailScreen = ({ route, navigation }) => {
   // Get timeline steps
   const getTimelineSteps = () => {
     const currentStatus = order?.status;
+    
+    // Kalau dibatalkan, tampilkan timeline khusus
+    if (currentStatus === 'dibatalkan') {
+      return [
+        { status: 'menunggu', label: 'Menunggu Konfirmasi', isCompleted: true, isActive: false },
+        { status: 'dibatalkan', label: 'Pesanan Dibatalkan', isCompleted: false, isActive: true },
+      ];
+    }
+    
+    // Timeline normal untuk selesai atau aktif
     const steps = [
       { status: 'menunggu', label: 'Menunggu Konfirmasi' },
       { status: 'diproses', label: 'Sedang Diproses' },
@@ -169,9 +201,11 @@ const OrderDetailScreen = ({ route, navigation }) => {
 
       {/* Timeline Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Status Pengiriman</Text>
+        <Text style={styles.sectionTitle}>
+          {order.status === 'dibatalkan' ? 'Status Pesanan' : 'Status Pengiriman'}
+        </Text>
         <View style={styles.timeline}>
-          {getTimelineSteps().map((step) =>
+          {getTimelineSteps().map((step, index) =>
             renderTimelineStep(
               step.status,
               step.label,
@@ -182,8 +216,8 @@ const OrderDetailScreen = ({ route, navigation }) => {
         </View>
       </View>
 
-      {/* Kurir Info (jika ada) */}
-      {order.nama_kurir && (
+      {/* Kurir Info (jika ada dan status bukan dibatalkan) */}
+      {order.nama_kurir && order.status !== 'dibatalkan' && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informasi Kurir</Text>
           <View style={styles.kurirInfo}>
@@ -236,34 +270,60 @@ const OrderDetailScreen = ({ route, navigation }) => {
               {PAYMENT_LABELS[order.metode_bayar]}
             </Text>
           </View>
-          <View style={styles.paymentRow}>
-            <Text style={styles.paymentLabel}>Status Pembayaran</Text>
-            <Text
-              style={[
-                styles.paymentValue,
-                {
-                  color:
-                    order.status_bayar === 'sudah_bayar'
-                      ? COLORS.success
-                      : COLORS.warning,
-                },
-              ]}
-            >
-              {order.status_bayar === 'sudah_bayar'
-                ? 'Sudah Dibayar'
-                : 'Belum Dibayar'}
-            </Text>
-          </View>
+          {order.status_bayar && (
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Status Pembayaran</Text>
+              <Text
+                style={[
+                  styles.paymentValue,
+                  {
+                    color:
+                      order.status_bayar === 'sudah_bayar'
+                        ? COLORS.success
+                        : COLORS.warning,
+                  },
+                ]}
+              >
+                {order.status_bayar === 'sudah_bayar'
+                  ? 'Sudah Dibayar'
+                  : 'Belum Dibayar'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Total Section */}
-      <View style={styles.totalSection}>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total ({order.jumlah_item} item)</Text>
-          <Text style={styles.totalAmount}>
-            {formatCurrency(order.total_harga)}
-          </Text>
+      {/* Price Breakdown Section - BARU! */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Rincian Harga</Text>
+        <View style={styles.priceBreakdown}>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>
+              Subtotal Produk ({order.jumlah_item} item)
+            </Text>
+            <Text style={styles.priceValue}>
+              {formatCurrency(order.subtotal || 0)}
+            </Text>
+          </View>
+          
+          <View style={styles.priceRow}>
+            <View style={styles.ongkirContainer}>
+              <Icon name="car-outline" size={18} color={COLORS.textLight} />
+              <Text style={styles.priceLabel}>Ongkos Kirim</Text>
+            </View>
+            <Text style={styles.priceValue}>
+              {formatCurrency(order.ongkir || 0)}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total Pembayaran</Text>
+            <Text style={styles.totalAmount}>
+              {formatCurrency(order.total_harga)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -475,19 +535,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
-  totalSection: {
-    backgroundColor: COLORS.white,
-    padding: SIZES.md,
-    marginTop: SIZES.sm,
+  priceBreakdown: {
+    gap: SIZES.sm,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: SIZES.xs,
+  },
+  ongkirContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  priceLabel: {
+    fontSize: SIZES.fontMd,
+    color: COLORS.textLight,
+  },
+  priceValue: {
+    fontSize: SIZES.fontMd,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SIZES.sm,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: SIZES.xs,
   },
   totalLabel: {
     fontSize: SIZES.fontLg,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: COLORS.text,
   },
   totalAmount: {

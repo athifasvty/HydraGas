@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { getDetailPesananKurir, updateStatusPesanan } from '../../api/kurir';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { getDetailPesananKurir, updateStatusPesanan, uploadBuktiPengiriman } from '../../api/kurir';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import {
   COLORS,
@@ -26,7 +28,9 @@ const OrderDetailScreen = ({ route, navigation }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   // Fetch order detail
   const fetchOrderDetail = async () => {
@@ -115,6 +119,166 @@ const OrderDetailScreen = ({ route, navigation }) => {
       Alert.alert('Error', error.message || 'Terjadi kesalahan');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Handle upload bukti - Show options
+  const handleUploadBukti = () => {
+    Alert.alert(
+      'Upload Bukti Pengiriman',
+      'Pilih sumber foto',
+      [
+        {
+          text: 'Kamera',
+          onPress: () => openCamera(),
+        },
+        {
+          text: 'Galeri',
+          onPress: () => openGallery(),
+        },
+        {
+          text: 'Batal',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  // Open camera
+  const openCamera = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      saveToPhotos: true,
+    };
+
+    launchCamera(options, (response) => {
+      handleImageResponse(response);
+    });
+  };
+
+  // Open gallery
+  const openGallery = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    };
+
+    launchImageLibrary(options, (response) => {
+      handleImageResponse(response);
+    });
+  };
+
+  // Handle image picker response
+  const handleImageResponse = (response) => {
+    if (response.didCancel) {
+      console.log('User cancelled image picker');
+      return;
+    }
+
+    if (response.errorCode) {
+      console.error('ImagePicker Error:', response.errorMessage);
+      Alert.alert('Error', 'Gagal mengambil foto: ' + response.errorMessage);
+      return;
+    }
+
+    if (response.assets && response.assets.length > 0) {
+      const image = response.assets[0];
+      console.log('📸 Image selected:', image);
+      
+      setSelectedImage(image);
+      
+      // Show preview and confirm upload
+      showUploadConfirmation(image);
+    }
+  };
+
+  // Show upload confirmation with preview
+  const showUploadConfirmation = (image) => {
+    Alert.alert(
+      'Upload Bukti Pengiriman',
+      'Upload foto ini sebagai bukti pengiriman?\n\nSetelah upload, pesanan akan otomatis selesai.',
+      [
+        {
+          text: 'Batal',
+          style: 'cancel',
+          onPress: () => setSelectedImage(null),
+        },
+        {
+          text: 'Upload',
+          onPress: () => uploadBukti(image),
+        },
+      ]
+    );
+  };
+
+  // Upload bukti to API
+  const uploadBukti = async (image) => {
+    try {
+      setUploading(true);
+
+      console.log('📤 Uploading bukti...');
+      console.log('📤 Order ID:', orderId);
+      console.log('📤 Image:', image);
+
+      const response = await uploadBuktiPengiriman(orderId, image);
+
+      console.log('✅ Upload response:', response);
+      console.log('✅ Response success:', response?.success);
+      console.log('✅ Response data:', response?.data);
+
+      // Check if response is valid and successful
+      // Sometimes response.success might be undefined but upload actually succeeded
+      if (response && (response.success === true || response.data)) {
+        console.log('✅ Upload SUCCESS - showing success alert');
+        
+        // Clear selected image first
+        setSelectedImage(null);
+        
+        Alert.alert(
+          'Berhasil! 🎉',
+          'Bukti pengiriman berhasil diupload.\nPesanan telah selesai!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Refresh data to get updated status
+                console.log('🔄 Refreshing order data...');
+                fetchOrderDetail();
+              },
+            },
+          ]
+        );
+      } else {
+        console.log('❌ Upload FAILED - showing error alert');
+        console.log('❌ Response:', JSON.stringify(response, null, 2));
+        
+        Alert.alert(
+          'Gagal Upload',
+          response?.message || 'Gagal upload bukti. Silakan coba lagi.',
+          [
+            { text: 'OK' }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('❌ Upload error (catch):', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error response:', error.response?.data);
+      
+      Alert.alert(
+        'Error',
+        'Terjadi kesalahan saat upload. Periksa koneksi internet Anda dan coba lagi.',
+        [
+          { text: 'OK' }
+        ]
+      );
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -232,16 +396,16 @@ const OrderDetailScreen = ({ route, navigation }) => {
     if (order.status === 'dikirim') {
       return (
         <TouchableOpacity
-          style={[styles.actionButton, styles.completeButton]}
-          onPress={() => handleUpdateStatus('selesai')}
-          disabled={updating}
+          style={[styles.actionButton, styles.uploadButton]}
+          onPress={handleUploadBukti}
+          disabled={uploading}
         >
-          {updating ? (
+          {uploading ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
             <>
-              <Icon name="checkmark-circle" size={24} color={COLORS.white} />
-              <Text style={styles.actionButtonText}>Pesanan Selesai</Text>
+              <Icon name="camera" size={24} color={COLORS.white} />
+              <Text style={styles.actionButtonText}>Upload Bukti Pengiriman</Text>
             </>
           )}
         </TouchableOpacity>
@@ -258,6 +422,30 @@ const OrderDetailScreen = ({ route, navigation }) => {
     }
 
     return null;
+  };
+
+  // Render bukti section (if already uploaded)
+  const renderBuktiSection = () => {
+    if (!order?.bukti_pengiriman || !order?.bukti_url) return null;
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Bukti Pengiriman</Text>
+        <View style={styles.buktiContainer}>
+          <Image
+            source={{ uri: order.bukti_url }}
+            style={styles.buktiImage}
+            resizeMode="cover"
+          />
+          <View style={styles.buktiInfo}>
+            <Icon name="checkmark-circle" size={20} color={COLORS.success} />
+            <Text style={styles.buktiText}>
+              Diupload pada {formatDateTime(order.waktu_upload_bukti)}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   // Loading state
@@ -331,6 +519,9 @@ const OrderDetailScreen = ({ route, navigation }) => {
             )}
           </View>
         </View>
+
+        {/* Bukti Pengiriman (if exists) */}
+        {renderBuktiSection()}
 
         {/* Customer Info */}
         <View style={styles.section}>
@@ -574,6 +765,27 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
   },
+  buktiContainer: {
+    borderRadius: SIZES.radiusMd,
+    overflow: 'hidden',
+    backgroundColor: COLORS.background,
+  },
+  buktiImage: {
+    width: '100%',
+    height: 200,
+    backgroundColor: COLORS.border,
+  },
+  buktiInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SIZES.md,
+    gap: SIZES.sm,
+  },
+  buktiText: {
+    fontSize: SIZES.fontSm,
+    color: COLORS.success,
+    fontWeight: '600',
+  },
   customerCard: {
     backgroundColor: COLORS.background,
     borderRadius: SIZES.radiusMd,
@@ -730,7 +942,7 @@ const styles = StyleSheet.create({
   startButton: {
     backgroundColor: COLORS.warning,
   },
-  completeButton: {
+  uploadButton: {
     backgroundColor: COLORS.success,
   },
   completedButton: {

@@ -3,7 +3,7 @@
  * Ganti IP_ADDRESS dengan IP laptop kamu
  */
 export const API_CONFIG = {
-  BASE_URL: 'http://10.79.187.206/api_gas_galon/api', // 👈 GANTI INI
+  BASE_URL: 'http://192.168.203.206/api_gas_galon/api', 
   TIMEOUT: 10000,
 };
 
@@ -80,6 +80,11 @@ export const PRODUCT_TYPE_LABELS = {
   elpiji: 'Gas Elpiji',
   galon: 'Galon Air',
 };
+
+/**
+ * Ongkir Configuration
+ */
+export const ONGKIR_FLAT = 10000; // Rp 10.000 - Sesuaikan dengan kebutuhan
 
 /**
  * App Colors

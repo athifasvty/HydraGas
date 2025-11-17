@@ -11,7 +11,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency } from '../../utils/formatters';
-import { COLORS, SIZES } from '../../utils/constants';
+import { COLORS, SIZES, ONGKIR_FLAT } from '../../utils/constants';
 
 const CartScreen = ({ navigation }) => {
   const {
@@ -64,9 +64,14 @@ const CartScreen = ({ navigation }) => {
     navigation.navigate('CustomerCheckout');
   };
 
+  // Calculate prices
+  const subtotal = getTotalPrice();
+  const ongkir = ONGKIR_FLAT;
+  const total = subtotal + ongkir;
+
   // Render cart item
   const renderCartItem = ({ item }) => {
-    const subtotal = item.harga * item.quantity;
+    const subtotalItem = item.harga * item.quantity;
     const isMaxQuantity = item.quantity >= item.stok;
 
     return (
@@ -90,7 +95,7 @@ const CartScreen = ({ navigation }) => {
           <Text style={styles.itemName}>{item.nama_produk}</Text>
           <Text style={styles.itemPrice}>{formatCurrency(item.harga)}</Text>
           <Text style={styles.itemSubtotal}>
-            Subtotal: {formatCurrency(subtotal)}
+            Subtotal: {formatCurrency(subtotalItem)}
           </Text>
         </View>
 
@@ -172,15 +177,32 @@ const CartScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Footer - Total & Checkout */}
+      {/* Footer - Price Breakdown & Checkout */}
       <View style={styles.footer}>
-        <View style={styles.totalContainer}>
-          <Text style={styles.totalLabel}>Total Belanja:</Text>
-          <Text style={styles.totalAmount}>
-            {formatCurrency(getTotalPrice())}
-          </Text>
+        {/* Price Breakdown */}
+        <View style={styles.priceBreakdown}>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Subtotal Produk</Text>
+            <Text style={styles.priceValue}>{formatCurrency(subtotal)}</Text>
+          </View>
+
+          <View style={styles.priceRow}>
+            <View style={styles.ongkirLabelContainer}>
+              <Icon name="car-outline" size={18} color={COLORS.textLight} />
+              <Text style={styles.priceLabel}>Ongkos Kirim</Text>
+            </View>
+            <Text style={styles.priceValue}>{formatCurrency(ongkir)}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total Belanja</Text>
+            <Text style={styles.totalAmount}>{formatCurrency(total)}</Text>
+          </View>
         </View>
 
+        {/* Checkout Button */}
         <TouchableOpacity
           style={styles.checkoutButton}
           onPress={handleCheckout}
@@ -294,15 +316,42 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
-  totalContainer: {
+  priceBreakdown: {
+    marginBottom: SIZES.md,
+  },
+  priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SIZES.md,
+    marginBottom: SIZES.sm,
+  },
+  ongkirLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  priceLabel: {
+    fontSize: SIZES.fontMd,
+    color: COLORS.textLight,
+  },
+  priceValue: {
+    fontSize: SIZES.fontMd,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SIZES.sm,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   totalLabel: {
     fontSize: SIZES.fontLg,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: COLORS.text,
   },
   totalAmount: {
