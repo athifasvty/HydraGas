@@ -7,14 +7,20 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import { createPesanan } from '../../api/customer';
+import { createPesanan, uploadBuktiBayar } from '../../api/customer';
 import { formatCurrency } from '../../utils/formatters';
 import { COLORS, SIZES, PAYMENT_METHODS, PAYMENT_LABELS, ONGKIR_FLAT } from '../../utils/constants';
+
+const { width } = Dimensions.get('window');
 
 const CheckoutScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
@@ -22,6 +28,9 @@ const CheckoutScreen = ({ navigation }) => {
 
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS.CASH);
   const [loading, setLoading] = useState(false);
+  const [buktiPembayaran, setBuktiPembayaran] = useState(null);
+  const [uploadingBukti, setUploadingBukti] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Calculate prices
   const subtotal = getTotalPrice();
@@ -52,7 +61,6 @@ const CheckoutScreen = ({ navigation }) => {
               text: 'OK',
               onPress: () => {
                 logout();
-                // Navigation will be handled by AuthContext
               }
             }
           ]
@@ -61,6 +69,69 @@ const CheckoutScreen = ({ navigation }) => {
     } catch (error) {
       console.error('❌ Auth check error:', error);
     }
+  };
+
+  // Handle pick image from gallery
+  const handlePickImage = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    };
+
+    launchImageLibrary(options, (response) => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage || 'Gagal memilih gambar');
+      } else if (response.assets && response.assets[0]) {
+        setBuktiPembayaran(response.assets[0]);
+      }
+    });
+  };
+
+  // Handle take photo from camera
+  const handleTakePhoto = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      saveToPhotos: false,
+    };
+
+    launchCamera(options, (response) => {
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage || 'Gagal mengambil foto');
+      } else if (response.assets && response.assets[0]) {
+        setBuktiPembayaran(response.assets[0]);
+      }
+    });
+  };
+
+  // Show image picker options
+  const showImagePickerOptions = () => {
+    Alert.alert(
+      'Upload Bukti Pembayaran',
+      'Pilih sumber gambar',
+      [
+        {
+          text: 'Ambil Foto',
+          onPress: () => handleTakePhoto(),
+        },
+        {
+          text: 'Pilih dari Galeri',
+          onPress: () => handlePickImage(),
+        },
+        {
+          text: 'Batal',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   // Validate before checkout
@@ -77,6 +148,12 @@ const CheckoutScreen = ({ navigation }) => {
 
     if (!user || !user.name || !user.phone || !user.address) {
       Alert.alert('Data Tidak Lengkap', 'Lengkapi profile Anda terlebih dahulu');
+      return false;
+    }
+
+    // Validasi bukti pembayaran untuk QRIS
+    if (selectedPayment === PAYMENT_METHODS.QRIS && !buktiPembayaran) {
+      Alert.alert('Bukti Pembayaran Diperlukan', 'Silakan upload bukti pembayaran QRIS terlebih dahulu');
       return false;
     }
 
@@ -120,10 +197,39 @@ const CheckoutScreen = ({ navigation }) => {
       console.log('💳 Payment Method:', selectedPayment);
       console.log('🚚 Ongkir:', ongkir);
 
+      let buktiFilename = null;
+
+      // Upload bukti jika QRIS
+      if (selectedPayment === PAYMENT_METHODS.QRIS && buktiPembayaran) {
+        console.log('📤 Uploading bukti pembayaran...');
+        setUploadingBukti(true);
+        
+        try {
+          const uploadResponse = await uploadBuktiBayar(buktiPembayaran.uri, 'temp');
+          
+          if (uploadResponse.success) {
+            buktiFilename = uploadResponse.data.filename;
+            console.log('✅ Bukti uploaded:', buktiFilename);
+          } else {
+            throw new Error(uploadResponse.message || 'Gagal upload bukti');
+          }
+        } catch (uploadError) {
+          console.error('❌ Upload Error:', uploadError);
+          throw {
+            success: false,
+            message: 'Gagal upload bukti pembayaran. ' + uploadError.message,
+          };
+        } finally {
+          setUploadingBukti(false);
+        }
+      }
+
+      // Prepare order data
       const orderData = {
         items: getCartItemsForAPI(),
         metode_bayar: selectedPayment,
-        ongkir: ongkir, // Kirim ongkir ke backend
+        ongkir: ongkir,
+        bukti_pembayaran: buktiFilename,
       };
 
       console.log('📤 Order Data:', JSON.stringify(orderData, null, 2));
@@ -133,8 +239,9 @@ const CheckoutScreen = ({ navigation }) => {
       console.log('✅ Order Response:', response);
 
       if (response.success) {
-        // Clear cart
+        // Clear cart and bukti
         clearCart();
+        setBuktiPembayaran(null);
 
         // Show success
         Alert.alert(
@@ -144,13 +251,11 @@ const CheckoutScreen = ({ navigation }) => {
             {
               text: 'Lihat Pesanan',
               onPress: () => {
-                // Reset navigation to home, then go to orders
                 navigation.reset({
                   index: 0,
                   routes: [{ name: 'CustomerHome' }],
                 });
                 
-                // Delay navigation to orders tab
                 setTimeout(() => {
                   navigation.getParent()?.navigate('CustomerOrders');
                 }, 100);
@@ -167,7 +272,6 @@ const CheckoutScreen = ({ navigation }) => {
     } catch (error) {
       console.error('❌ Submit Order Error:', error);
 
-      // Handle token/login errors
       if (error.needsLogin) {
         Alert.alert(
           'Sesi Berakhir',
@@ -184,7 +288,6 @@ const CheckoutScreen = ({ navigation }) => {
         return;
       }
 
-      // Show error message
       Alert.alert(
         'Gagal Membuat Pesanan',
         error.message || 'Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.',
@@ -225,7 +328,13 @@ const CheckoutScreen = ({ navigation }) => {
           styles.paymentMethod,
           isSelected && styles.paymentMethodActive,
         ]}
-        onPress={() => setSelectedPayment(method)}
+        onPress={() => {
+          setSelectedPayment(method);
+          // Reset bukti jika ganti ke CASH
+          if (method === PAYMENT_METHODS.CASH) {
+            setBuktiPembayaran(null);
+          }
+        }}
       >
         <Icon
           name={icon}
@@ -295,12 +404,99 @@ const CheckoutScreen = ({ navigation }) => {
               'cash'
             )}
             {renderPaymentMethod(
-              PAYMENT_METHODS.TRANSFER,
-              PAYMENT_LABELS.transfer,
-              'card'
+              PAYMENT_METHODS.QRIS,
+              PAYMENT_LABELS.qris,
+              'qr-code'
             )}
           </View>
         </View>
+
+        {/* QRIS Section - Only show when QRIS is selected */}
+        {selectedPayment === PAYMENT_METHODS.QRIS && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Icon name="qr-code" size={20} color={COLORS.primary} />
+              <Text style={styles.sectionTitle}>Pembayaran QRIS</Text>
+            </View>
+            
+            {/* QR Code Display */}
+            <View style={styles.qrisContainer}>
+              <TouchableOpacity 
+                style={styles.qrCodeWrapper}
+                onPress={() => setShowQRModal(true)}
+              >
+                <Image
+                  source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=DUMMY-QRIS-GAS-GALON-PEMBAYARAN' }}
+                  style={styles.qrCodeImage}
+                  resizeMode="contain"
+                />
+                <View style={styles.qrOverlay}>
+                  <Icon name="expand" size={24} color={COLORS.white} />
+                  <Text style={styles.qrOverlayText}>Tap untuk perbesar</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Instructions */}
+              <View style={styles.qrisInstructions}>
+                <Text style={styles.instructionTitle}>
+                  <Icon name="information-circle" size={16} color={COLORS.primary} />
+                  {' '}Cara Bayar:
+                </Text>
+                <Text style={styles.instructionText}>
+                  1. Buka aplikasi e-wallet Anda (DANA, OVO, GoPay, dll)
+                </Text>
+                <Text style={styles.instructionText}>
+                  2. Scan QR Code di atas
+                </Text>
+                <Text style={styles.instructionText}>
+                  3. Masukkan nominal: <Text style={styles.instructionAmount}>{formatCurrency(total)}</Text>
+                </Text>
+                <Text style={styles.instructionText}>
+                  4. Selesaikan pembayaran
+                </Text>
+                <Text style={styles.instructionText}>
+                  5. Screenshot bukti dan upload di bawah
+                </Text>
+              </View>
+
+              {/* Upload Bukti Section */}
+              <View style={styles.uploadSection}>
+                <Text style={styles.uploadLabel}>
+                  Upload Bukti Pembayaran <Text style={styles.required}>*</Text>
+                </Text>
+                
+                {buktiPembayaran ? (
+                  <View style={styles.buktiPreview}>
+                    <Image
+                      source={{ uri: buktiPembayaran.uri }}
+                      style={styles.buktiImage}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.removeBuktiBtn}
+                      onPress={() => setBuktiPembayaran(null)}
+                    >
+                      <Icon name="close-circle" size={24} color={COLORS.danger} />
+                    </TouchableOpacity>
+                    <View style={styles.buktiInfo}>
+                      <Icon name="checkmark-circle" size={20} color={COLORS.success} />
+                      <Text style={styles.buktiInfoText}>Bukti berhasil dipilih</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={showImagePickerOptions}
+                  >
+                    <Icon name="cloud-upload" size={32} color={COLORS.primary} />
+                    <Text style={styles.uploadButtonText}>Upload Bukti Transfer</Text>
+                    <Text style={styles.uploadButtonHint}>JPG, PNG (Max 5MB)</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Order Summary */}
         <View style={styles.section}>
@@ -344,12 +540,17 @@ const CheckoutScreen = ({ navigation }) => {
           </Text>
         </View>
         <TouchableOpacity
-          style={[styles.orderButton, loading && styles.orderButtonDisabled]}
+          style={[styles.orderButton, (loading || uploadingBukti) && styles.orderButtonDisabled]}
           onPress={handleCheckout}
-          disabled={loading}
+          disabled={loading || uploadingBukti}
         >
-          {loading ? (
-            <ActivityIndicator color={COLORS.white} />
+          {loading || uploadingBukti ? (
+            <>
+              <ActivityIndicator color={COLORS.white} />
+              <Text style={styles.orderButtonText}>
+                {uploadingBukti ? 'Upload Bukti...' : 'Memproses...'}
+              </Text>
+            </>
           ) : (
             <>
               <Text style={styles.orderButtonText}>Buat Pesanan</Text>
@@ -358,6 +559,32 @@ const CheckoutScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* QR Code Modal - Fullscreen */}
+      <Modal
+        visible={showQRModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.closeModalBtn}
+              onPress={() => setShowQRModal(false)}
+            >
+              <Icon name="close" size={32} color={COLORS.white} />
+            </TouchableOpacity>
+            <Image
+              source={{ uri: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=DUMMY-QRIS-GAS-GALON-PEMBAYARAN' }}
+              style={styles.qrCodeImageLarge}
+              resizeMode="contain"
+            />
+            <Text style={styles.modalTitle}>Scan QR Code untuk Bayar</Text>
+            <Text style={styles.modalAmount}>{formatCurrency(total)}</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -463,6 +690,129 @@ const styles = StyleSheet.create({
   checkIcon: {
     marginLeft: 'auto',
   },
+  // QRIS Styles
+  qrisContainer: {
+    paddingLeft: SIZES.lg,
+    paddingRight: SIZES.lg,
+  },
+  qrCodeWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radiusLg,
+    padding: SIZES.md,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    marginBottom: SIZES.md,
+    position: 'relative',
+  },
+  qrCodeImage: {
+    width: width * 0.6,
+    height: width * 0.6,
+    maxWidth: 250,
+    maxHeight: 250,
+  },
+  qrOverlay: {
+    position: 'absolute',
+    bottom: SIZES.md,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.sm,
+    borderRadius: SIZES.radiusSm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.xs,
+  },
+  qrOverlayText: {
+    color: COLORS.white,
+    fontSize: SIZES.fontSm,
+  },
+  qrisInstructions: {
+    backgroundColor: '#E3F2FD',
+    padding: SIZES.md,
+    borderRadius: SIZES.radiusMd,
+    marginBottom: SIZES.md,
+  },
+  instructionTitle: {
+    fontSize: SIZES.fontMd,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: SIZES.sm,
+  },
+  instructionText: {
+    fontSize: SIZES.fontSm,
+    color: COLORS.text,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  instructionAmount: {
+    fontWeight: 'bold',
+    color: COLORS.success,
+  },
+  uploadSection: {
+    marginTop: SIZES.sm,
+  },
+  uploadLabel: {
+    fontSize: SIZES.fontMd,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: SIZES.sm,
+  },
+  required: {
+    color: COLORS.danger,
+  },
+  uploadButton: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+    borderRadius: SIZES.radiusMd,
+    padding: SIZES.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F9FF',
+  },
+  uploadButtonText: {
+    fontSize: SIZES.fontMd,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginTop: SIZES.sm,
+  },
+  uploadButtonHint: {
+    fontSize: SIZES.fontSm,
+    color: COLORS.textLight,
+    marginTop: 4,
+  },
+  buktiPreview: {
+    position: 'relative',
+    borderRadius: SIZES.radiusMd,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: COLORS.success,
+  },
+  buktiImage: {
+    width: '100%',
+    height: 200,
+    backgroundColor: COLORS.light,
+  },
+  removeBuktiBtn: {
+    position: 'absolute',
+    top: SIZES.sm,
+    right: SIZES.sm,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radiusFull,
+  },
+  buktiInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.success,
+    padding: SIZES.sm,
+    gap: SIZES.sm,
+  },
+  buktiInfoText: {
+    color: COLORS.white,
+    fontSize: SIZES.fontSm,
+    fontWeight: 'bold',
+  },
   summary: {
     paddingLeft: SIZES.lg,
   },
@@ -537,6 +887,41 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: SIZES.fontLg,
     fontWeight: 'bold',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    alignItems: 'center',
+    padding: SIZES.xl,
+  },
+  closeModalBtn: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+  },
+  qrCodeImageLarge: {
+    width: width * 0.8,
+    height: width * 0.8,
+    maxWidth: 350,
+    maxHeight: 350,
+  },
+  modalTitle: {
+    color: COLORS.white,
+    fontSize: SIZES.fontLg,
+    fontWeight: 'bold',
+    marginTop: SIZES.lg,
+  },
+  modalAmount: {
+    color: COLORS.success,
+    fontSize: SIZES.fontXxl,
+    fontWeight: 'bold',
+    marginTop: SIZES.sm,
   },
 });
 

@@ -76,3 +76,41 @@ export const getRiwayat = async (params = {}) => {
     throw error;
   }
 };
+
+/**
+ * Upload bukti pembayaran QRIS
+ */
+export const uploadBuktiBayar = async (imageUri, idPesanan = 'temp') => {
+  try {
+    const formData = new FormData();
+    
+    // Ambil filename dari URI
+    const filename = imageUri.split('/').pop();
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    
+    formData.append('bukti', {
+      uri: imageUri,
+      name: filename,
+      type: type,
+    });
+    
+    formData.append('id_pesanan', idPesanan);
+    
+    const token = await AsyncStorage.getItem('token');
+    
+    const response = await fetch(`${API_CONFIG.BASE_URL}/customer/upload-bukti.php`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Upload Bukti Error:', error);
+    throw error;
+  }
+};

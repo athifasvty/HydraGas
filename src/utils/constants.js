@@ -3,7 +3,7 @@
  * Ganti IP_ADDRESS dengan IP laptop kamu
  */
 export const API_CONFIG = {
-  BASE_URL: 'http://192.168.203.206/api_gas_galon/api', 
+  BASE_URL: 'http://192.168.18.16/api_gas_galon/api', 
   TIMEOUT: 10000,
 };
 
@@ -54,7 +54,7 @@ export const STATUS_COLORS = {
  */
 export const PAYMENT_METHODS = {
   CASH: 'cash',
-  TRANSFER: 'transfer',
+  QRIS: 'qris', // ✅ Changed from TRANSFER to QRIS
 };
 
 /**
@@ -62,7 +62,7 @@ export const PAYMENT_METHODS = {
  */
 export const PAYMENT_LABELS = {
   cash: 'Bayar di Tempat (COD)',
-  transfer: 'Transfer Bank',
+  qris: 'QRIS (Scan & Bayar)', // ✅ Updated label
 };
 
 /**
