@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_CONFIG } from '../utils/constants';
 import apiClient from './client';
 
 /**
@@ -19,7 +21,7 @@ export const getProduk = async (params = {}) => {
 
 /**
  * Create Pesanan Baru
- * @param {Object} data - {items: [{id_produk, jumlah}], metode_bayar: 'cash'|'transfer'}
+ * @param {Object} data - {items: [{id_produk, jumlah}], metode_bayar: 'cash'|'qris', bukti_pembayaran: 'filename.jpg'}
  * @returns {Promise}
  */
 export const createPesanan = async (data) => {
@@ -79,9 +81,16 @@ export const getRiwayat = async (params = {}) => {
 
 /**
  * Upload bukti pembayaran QRIS
+ * @param {string} imageUri - URI gambar dari image picker
+ * @param {string} idPesanan - ID pesanan (opsional, default 'temp')
+ * @returns {Promise}
  */
 export const uploadBuktiBayar = async (imageUri, idPesanan = 'temp') => {
   try {
+    console.log('📤 Uploading bukti pembayaran...');
+    console.log('- Image URI:', imageUri);
+    console.log('- ID Pesanan:', idPesanan);
+    
     const formData = new FormData();
     
     // Ambil filename dari URI
@@ -97,20 +106,36 @@ export const uploadBuktiBayar = async (imageUri, idPesanan = 'temp') => {
     
     formData.append('id_pesanan', idPesanan);
     
+    // Get token from AsyncStorage
     const token = await AsyncStorage.getItem('token');
     
+    if (!token) {
+      throw new Error('Token tidak ditemukan. Silakan login kembali.');
+    }
+    
+    console.log('🔑 Token found, uploading...');
+    
+    // Upload menggunakan fetch (karena FormData)
     const response = await fetch(`${API_CONFIG.BASE_URL}/customer/upload-bukti.php`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
+        // JANGAN tambahkan Content-Type, biar browser yang set otomatis untuk multipart/form-data
       },
       body: formData,
     });
     
     const data = await response.json();
+    
+    console.log('✅ Upload response:', data);
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Gagal upload bukti pembayaran');
+    }
+    
     return data;
   } catch (error) {
-    console.error('Upload Bukti Error:', error);
+    console.error('❌ Upload Bukti Error:', error);
     throw error;
   }
 };
