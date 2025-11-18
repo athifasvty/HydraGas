@@ -10,10 +10,12 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  ImageBackground,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useAuth } from '../../context/AuthContext'; // ✅ DIGANTI INI
-import { COLORS, SIZES } from '../../utils/constants';
+import { useAuth } from '../../context/AuthContext';
+import { COLORS, SIZES, SCREENS } from '../../utils/constants';
 
 const RegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
@@ -28,6 +30,7 @@ const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('register');
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -133,251 +136,305 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <ImageBackground
+      source={{ uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800' }}
+      style={styles.backgroundImage}
+      resizeMode="cover"
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
-        <View style={styles.headerContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={goToLogin}>
-            <Icon name="arrow-back" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Daftar Akun</Text>
-          <Text style={styles.subtitle}>Buat akun customer baru</Text>
-        </View>
-
-        {/* Form */}
-        <View style={styles.formContainer}>
-          {/* Nama Lengkap */}
-          <View style={styles.inputContainer}>
-            <Icon name="person-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Nama Lengkap *"
-              value={formData.name}
-              onChangeText={(value) => handleChange('name', value)}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-          </View>
-
-          {/* Username */}
-          <View style={styles.inputContainer}>
-            <Icon name="at-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Username *"
-              value={formData.username}
-              onChangeText={(value) => handleChange('username', value)}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isLoading}
-            />
-          </View>
-
-          {/* Password */}
-          <View style={styles.inputContainer}>
-            <Icon name="lock-closed-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password *"
-              value={formData.password}
-              onChangeText={(value) => handleChange('password', value)}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Icon
-                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                size={20}
-                color={COLORS.textLight}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Card Container */}
+          <View style={styles.cardContainer}>
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../assets/images/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
               />
-            </TouchableOpacity>
-          </View>
+            </View>
 
-          {/* Confirm Password */}
-          <View style={styles.inputContainer}>
-            <Icon name="lock-closed-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Konfirmasi Password *"
-              value={formData.confirmPassword}
-              onChangeText={(value) => handleChange('confirmPassword', value)}
-              secureTextEntry={!showConfirmPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              <Icon
-                name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-                size={20}
-                color={COLORS.textLight}
+            {/* Title */}
+            <Text style={styles.title}>REGISTRASI</Text>
+
+            {/* Tab Switcher */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'login' && styles.activeTab]}
+                onPress={() => {
+                  setActiveTab('login');
+                  goToLogin();
+                }}
+              >
+                <Text style={[styles.tabText, activeTab === 'login' && styles.activeTabText]}>
+                  Login
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'register' && styles.activeTab]}
+                onPress={() => setActiveTab('register')}
+              >
+                <Text style={[styles.tabText, activeTab === 'register' && styles.activeTabText]}>
+                  Register
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Form */}
+            <View style={styles.formContainer}>
+              {/* Nama Lengkap */}
+              <TextInput
+                style={styles.input}
+                placeholder="name"
+                value={formData.name}
+                onChangeText={(value) => handleChange('name', value)}
+                autoCapitalize="words"
+                editable={!isLoading}
+                placeholderTextColor={COLORS.textLight}
               />
-            </TouchableOpacity>
+
+              {/* Username */}
+              <TextInput
+                style={styles.input}
+                placeholder="username"
+                value={formData.username}
+                onChangeText={(value) => handleChange('username', value)}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isLoading}
+                placeholderTextColor={COLORS.textLight}
+              />
+
+              {/* Password */}
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="password"
+                  value={formData.password}
+                  onChangeText={(value) => handleChange('password', value)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  placeholderTextColor={COLORS.textLight}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Icon
+                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color={COLORS.textLight}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Confirm Password */}
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Konfirmasi Password"
+                  value={formData.confirmPassword}
+                  onChangeText={(value) => handleChange('confirmPassword', value)}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  placeholderTextColor={COLORS.textLight}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Icon
+                    name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color={COLORS.textLight}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Phone */}
+              <TextInput
+                style={styles.input}
+                placeholder="phone"
+                value={formData.phone}
+                onChangeText={(value) => handleChange('phone', value)}
+                keyboardType="phone-pad"
+                editable={!isLoading}
+                placeholderTextColor={COLORS.textLight}
+              />
+
+              {/* Address */}
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="address"
+                value={formData.address}
+                onChangeText={(value) => handleChange('address', value)}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                editable={!isLoading}
+                placeholderTextColor={COLORS.textLight}
+              />
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+                onPress={handleRegister}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.submitButtonText}>SUBMIT</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-
-          {/* Phone */}
-          <View style={styles.inputContainer}>
-            <Icon name="call-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Nomor Telepon (Opsional)"
-              value={formData.phone}
-              onChangeText={(value) => handleChange('phone', value)}
-              keyboardType="phone-pad"
-              editable={!isLoading}
-            />
-          </View>
-
-          {/* Address */}
-          <View style={[styles.inputContainer, styles.textAreaContainer]}>
-            <Icon name="location-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Alamat Lengkap (Opsional)"
-              value={formData.address}
-              onChangeText={(value) => handleChange('address', value)}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              editable={!isLoading}
-            />
-          </View>
-
-          {/* Info */}
-          <Text style={styles.infoText}>* Wajib diisi</Text>
-
-          {/* Register Button */}
-          <TouchableOpacity
-            style={[styles.registerButton, isLoading && styles.registerButtonDisabled]}
-            onPress={handleRegister}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <Text style={styles.registerButtonText}>Daftar</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Login Link */}
-          <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Sudah punya akun? </Text>
-            <TouchableOpacity onPress={goToLogin} disabled={isLoading}>
-              <Text style={styles.loginLink}>Login</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: 'rgba(135, 206, 235, 0.3)',
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: 'center',
     padding: SIZES.lg,
   },
-  headerContainer: {
-    marginBottom: SIZES.xl,
-    marginTop: SIZES.xl,
+  cardContainer: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 30,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 0,
+    padding: SIZES.xl,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  backButton: {
+  logoContainer: {
+    alignItems: 'center',
     marginBottom: SIZES.md,
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
   },
   title: {
-    fontSize: SIZES.fontXxl,
+    fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: SIZES.xs,
+    textAlign: 'center',
+    marginBottom: SIZES.lg,
   },
-  subtitle: {
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.light,
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: SIZES.lg,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: SIZES.sm,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: COLORS.white,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
     fontSize: SIZES.fontMd,
     color: COLORS.textLight,
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
   },
   formContainer: {
-    marginBottom: SIZES.xl,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.light,
-    borderRadius: SIZES.radiusMd,
-    marginBottom: SIZES.md,
-    paddingHorizontal: SIZES.md,
-    minHeight: 50,
-  },
-  textAreaContainer: {
-    alignItems: 'flex-start',
-    paddingVertical: SIZES.md,
-    minHeight: 80,
-  },
-  inputIcon: {
-    marginRight: SIZES.sm,
-  },
-  input: {
-    flex: 1,
-    fontSize: SIZES.fontMd,
-    color: COLORS.text,
-  },
-  textArea: {
-    minHeight: 60,
-  },
-  eyeIcon: {
-    padding: SIZES.sm,
-  },
-  infoText: {
-    fontSize: SIZES.fontSm,
-    color: COLORS.textLight,
-    marginBottom: SIZES.md,
-  },
-  registerButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: SIZES.radiusMd,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginTop: SIZES.md,
   },
-  registerButtonDisabled: {
+  input: {
+    backgroundColor: COLORS.light,
+    borderRadius: 8,
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.md,
+    fontSize: SIZES.fontMd,
+    color: COLORS.text,
+    marginBottom: SIZES.md,
+  },
+  textArea: {
+    minHeight: 80,
+    paddingTop: SIZES.md,
+  },
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: SIZES.md,
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: SIZES.md,
+    top: '50%',
+    transform: [{ translateY: -10 }],
+    padding: SIZES.xs,
+  },
+  submitButton: {
+    backgroundColor: '#2980b9',
+    borderRadius: 25,
+    paddingVertical: SIZES.md,
+    alignItems: 'center',
+    marginTop: SIZES.md,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  submitButtonDisabled: {
     backgroundColor: COLORS.gray,
   },
-  registerButtonText: {
+  submitButtonText: {
     color: COLORS.white,
     fontSize: SIZES.fontMd,
     fontWeight: 'bold',
-  },
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: SIZES.lg,
-  },
-  loginText: {
-    fontSize: SIZES.fontMd,
-    color: COLORS.textLight,
-  },
-  loginLink: {
-    fontSize: SIZES.fontMd,
-    color: COLORS.primary,
-    fontWeight: 'bold',
+    letterSpacing: 1,
   },
 });
 
