@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
@@ -100,12 +101,21 @@ const HomeScreen = ({ navigation }) => {
     fetchProduk();
   }, []);
 
+  // Get product image based on type
+  const getProductImage = (jenis) => {
+    if (jenis === 'elpiji') {
+      return require('../../assets/images/gas.png');
+    } else {
+      return require('../../assets/images/galon.png');
+    }
+  };
+
   // Render Filter Chips
   const renderFilterChips = () => {
     const filters = [
-      { key: 'semua', label: 'Semua', icon: 'list' },
-      { key: 'elpiji', label: 'Gas Elpiji', icon: 'flame' },
-      { key: 'galon', label: 'Galon Air', icon: 'water' },
+      { key: 'semua', label: 'All', icon: 'list' },
+      { key: 'elpiji', label: 'Gas LPG', icon: 'flame' },
+      { key: 'galon', label: 'Air Galon', icon: 'water' },
     ];
 
     return (
@@ -119,14 +129,6 @@ const HomeScreen = ({ navigation }) => {
             ]}
             onPress={() => handleFilterChange(filter.key)}
           >
-            <Icon
-              name={filter.icon}
-              size={18}
-              color={
-                selectedFilter === filter.key ? COLORS.white : COLORS.primary
-              }
-              style={styles.filterIcon}
-            />
             <Text
               style={[
                 styles.filterText,
@@ -146,72 +148,58 @@ const HomeScreen = ({ navigation }) => {
     const inCart = isInCart(item.id);
     const cartQty = getItemQuantity(item.id);
     const isOutOfStock = item.stok <= 0;
-    const isLowStock = item.stok > 0 && item.stok < 10;
 
     return (
       <View style={styles.productCard}>
-        {/* Product Icon */}
-        <View
-          style={[
-            styles.productIcon,
-            { backgroundColor: item.jenis === 'elpiji' ? '#FFE5E5' : '#E3F2FD' },
-          ]}
-        >
-          <Icon
-            name={item.jenis === 'elpiji' ? 'flame' : 'water'}
-            size={32}
-            color={item.jenis === 'elpiji' ? '#F44336' : '#2196F3'}
-          />
-        </View>
+        {/* Product Image */}
+        <Image
+          source={getProductImage(item.jenis)}
+          style={styles.productImage}
+          resizeMode="cover"
+        />
 
-        {/* Product Info */}
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.nama_produk}</Text>
+        {/* Product Name */}
+        <Text style={styles.productName} numberOfLines={2}>
+          {item.nama_produk}
+        </Text>
+
+        {/* Stock Info */}
+        <Text style={styles.stockText}>Stok: {item.stok}</Text>
+
+        {/* Product Price */}
+        <View style={styles.priceContainer}>
           <Text style={styles.productPrice}>{formatCurrency(item.harga)}</Text>
-
-          {/* Stock Badge */}
-          <View style={styles.stockBadgeContainer}>
-            {isOutOfStock ? (
-              <View style={[styles.stockBadge, styles.stockBadgeEmpty]}>
-                <Text style={styles.stockBadgeText}>Habis</Text>
-              </View>
-            ) : isLowStock ? (
-              <View style={[styles.stockBadge, styles.stockBadgeLow]}>
-                <Text style={styles.stockBadgeText}>
-                  Stok Terbatas ({item.stok})
-                </Text>
-              </View>
-            ) : (
-              <View style={[styles.stockBadge, styles.stockBadgeAvailable]}>
-                <Text style={styles.stockBadgeText}>Tersedia ({item.stok})</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Cart Quantity Info */}
-          {inCart && (
-            <View style={styles.cartInfo}>
-              <Icon name="cart" size={14} color={COLORS.primary} />
-              <Text style={styles.cartInfoText}>{cartQty} di keranjang</Text>
-            </View>
-          )}
+          
+          {/* Add to Cart Button */}
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              isOutOfStock && styles.addButtonDisabled,
+            ]}
+            onPress={() => handleAddToCart(item)}
+            disabled={isOutOfStock}
+          >
+            <Icon
+              name="add"
+              size={24}
+              color={COLORS.white}
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* Add to Cart Button */}
-        <TouchableOpacity
-          style={[
-            styles.addButton,
-            isOutOfStock && styles.addButtonDisabled,
-          ]}
-          onPress={() => handleAddToCart(item)}
-          disabled={isOutOfStock}
-        >
-          <Icon
-            name="add-circle"
-            size={36}
-            color={isOutOfStock ? COLORS.gray : COLORS.primary}
-          />
-        </TouchableOpacity>
+        {/* Stock Info */}
+        {isOutOfStock && (
+          <View style={styles.outOfStockBadge}>
+            <Text style={styles.outOfStockText}>Stok Habis</Text>
+          </View>
+        )}
+
+        {/* Cart Info */}
+        {inCart && !isOutOfStock && (
+          <View style={styles.inCartBadge}>
+            <Text style={styles.inCartText}>{cartQty} di keranjang</Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -243,27 +231,49 @@ const HomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerGreeting}>Halo,</Text>
-          <Text style={styles.headerName}>{user?.name || 'Customer'}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerGreeting}>Selamat datang,</Text>
+          <Text style={styles.headerName}>{user?.name || 'bina'}!</Text>
         </View>
-        <TouchableOpacity
-          style={styles.cartButton}
+        <TouchableOpacity style={styles.profileButton}>
+          <Icon name="person-circle" size={40} color={COLORS.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Navigation Tabs */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity style={styles.tab}>
+          <Icon name="cube" size={20} color={COLORS.primary} />
+          <Text style={styles.tabText}>Produk</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.tab}
           onPress={() => navigation.navigate('CustomerCart')}
         >
-          <Icon name="cart" size={28} color={COLORS.white} />
+          <Icon name="cart" size={20} color={COLORS.textLight} />
+          <Text style={[styles.tabText, styles.tabTextInactive]}>Keranjang</Text>
           {cartItems.length > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartItems.length}</Text>
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{cartItems.length}</Text>
             </View>
           )}
         </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.tab}
+          onPress={() => navigation.navigate('CustomerOrders')}
+        >
+          <Icon name="receipt" size={20} color={COLORS.textLight} />
+          <Text style={[styles.tabText, styles.tabTextInactive]}>Pesanan</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Title */}
+      <Text style={styles.sectionTitle}>Produk Kami</Text>
 
       {/* Filter Chips */}
       {renderFilterChips()}
 
-      {/* Product List */}
+      {/* Product Grid */}
       {filteredProduk.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Icon name="cube-outline" size={80} color={COLORS.gray} />
@@ -279,7 +289,9 @@ const HomeScreen = ({ navigation }) => {
           data={filteredProduk}
           renderItem={renderProductCard}
           keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
           contentContainerStyle={styles.listContent}
+          columnWrapperStyle={styles.columnWrapper}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -297,13 +309,14 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SIZES.lg,
+    backgroundColor: COLORS.white,
   },
   loadingText: {
     marginTop: SIZES.md,
@@ -331,65 +344,97 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: SIZES.md,
-    backgroundColor: COLORS.primary,
+    paddingTop: SIZES.lg,
+    backgroundColor: COLORS.white,
+  },
+  headerLeft: {
+    flex: 1,
   },
   headerGreeting: {
-    fontSize: SIZES.fontSm,
-    color: COLORS.white,
-    opacity: 0.9,
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginBottom: 2,
   },
   headerName: {
-    fontSize: SIZES.fontXl,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: COLORS.text,
   },
-  cartButton: {
+  profileButton: {
+    padding: SIZES.xs,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.light,
+    backgroundColor: COLORS.white,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SIZES.sm,
+    gap: 6,
     position: 'relative',
-    padding: SIZES.sm,
   },
-  cartBadge: {
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  tabTextInactive: {
+    color: COLORS.textLight,
+  },
+  tabBadge: {
     position: 'absolute',
     top: 0,
-    right: 0,
+    right: '25%',
     backgroundColor: COLORS.danger,
-    borderRadius: SIZES.radiusFull,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SIZES.xs,
+    paddingHorizontal: 4,
   },
-  cartBadgeText: {
+  tabBadgeText: {
     color: COLORS.white,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    paddingHorizontal: SIZES.md,
+    paddingTop: SIZES.md,
+    paddingBottom: SIZES.sm,
   },
   filterContainer: {
     flexDirection: 'row',
-    padding: SIZES.md,
+    paddingHorizontal: SIZES.md,
+    paddingBottom: SIZES.md,
     gap: SIZES.sm,
   },
   filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
-    borderRadius: SIZES.radiusFull,
+    paddingVertical: SIZES.xs,
+    borderRadius: 20,
     backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderColor: '#4CAF50',
   },
   filterChipActive: {
-    backgroundColor: COLORS.primary,
-  },
-  filterIcon: {
-    marginRight: SIZES.xs,
+    backgroundColor: '#4CAF50',
   },
   filterText: {
-    fontSize: SIZES.fontSm,
-    color: COLORS.primary,
+    fontSize: 13,
+    color: '#4CAF50',
     fontWeight: '600',
   },
   filterTextActive: {
@@ -399,81 +444,89 @@ const styles = StyleSheet.create({
     padding: SIZES.md,
     paddingBottom: SIZES.xl,
   },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: SIZES.md,
+  },
   productCard: {
-    flexDirection: 'row',
+    width: '48%',
     backgroundColor: COLORS.white,
     borderRadius: SIZES.radiusMd,
-    padding: SIZES.md,
-    marginBottom: SIZES.md,
-    alignItems: 'center',
+    padding: SIZES.sm,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    position: 'relative',
   },
-  productIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: SIZES.radiusMd,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SIZES.md,
-  },
-  productInfo: {
-    flex: 1,
+  productImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: SIZES.radiusSm,
+    marginBottom: SIZES.sm,
+    backgroundColor: COLORS.light,
   },
   productName: {
-    fontSize: SIZES.fontMd,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     color: COLORS.text,
     marginBottom: SIZES.xs,
+    minHeight: 36,
   },
-  productPrice: {
-    fontSize: SIZES.fontLg,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+  stockText: {
+    fontSize: 12,
+    color: COLORS.textLight,
     marginBottom: SIZES.xs,
   },
-  stockBadgeContainer: {
+  priceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: SIZES.xs,
   },
-  stockBadge: {
-    alignSelf: 'flex-start',
+  productPrice: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  addButton: {
+    backgroundColor: '#4CAF50',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonDisabled: {
+    backgroundColor: COLORS.gray,
+  },
+  outOfStockBadge: {
+    position: 'absolute',
+    top: SIZES.sm,
+    right: SIZES.sm,
+    backgroundColor: COLORS.danger,
     paddingHorizontal: SIZES.sm,
     paddingVertical: 4,
     borderRadius: SIZES.radiusSm,
   },
-  stockBadgeAvailable: {
-    backgroundColor: '#E8F5E9',
+  outOfStockText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: 'bold',
   },
-  stockBadgeLow: {
-    backgroundColor: '#FFF3E0',
-  },
-  stockBadgeEmpty: {
-    backgroundColor: '#FFEBEE',
-  },
-  stockBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  cartInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  inCartBadge: {
     marginTop: SIZES.xs,
-    gap: 4,
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: SIZES.xs,
+    paddingVertical: 4,
+    borderRadius: SIZES.radiusSm,
+    alignSelf: 'flex-start',
   },
-  cartInfoText: {
-    fontSize: 12,
+  inCartText: {
     color: COLORS.primary,
+    fontSize: 10,
     fontWeight: '600',
-  },
-  addButton: {
-    padding: SIZES.xs,
-  },
-  addButtonDisabled: {
-    opacity: 0.3,
   },
   emptyContainer: {
     flex: 1,
