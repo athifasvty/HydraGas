@@ -21,8 +21,9 @@ const OrderListScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const [selectedFilter, setSelectedFilter] = useState('all'); // all, diproses, dikirim
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('pesanan');
 
   // Fetch orders
   const fetchOrders = async (isRefresh = false) => {
@@ -63,15 +64,12 @@ const OrderListScreen = ({ navigation }) => {
   const applyFilters = (data, filter, search) => {
     let filtered = [...data];
 
-    // Filter by status
     if (filter === 'diproses') {
       filtered = filtered.filter((o) => o.status === 'diproses');
     } else if (filter === 'dikirim') {
       filtered = filtered.filter((o) => o.status === 'dikirim');
     }
-    // 'all' tidak perlu filter
 
-    // Search filter
     if (search.trim() !== '') {
       const query = search.toLowerCase();
       filtered = filtered.filter(
@@ -106,7 +104,6 @@ const OrderListScreen = ({ navigation }) => {
   useEffect(() => {
     fetchOrders();
 
-    // Auto refresh setiap 30 detik
     const interval = setInterval(() => {
       fetchOrders(true);
     }, 30000);
@@ -124,9 +121,9 @@ const OrderListScreen = ({ navigation }) => {
   // Render filter chips
   const renderFilterChips = () => {
     const filters = [
-      { key: 'all', label: 'Semua', icon: 'list' },
-      { key: 'diproses', label: 'Diproses', icon: 'time' },
-      { key: 'dikirim', label: 'Dikirim', icon: 'bicycle' },
+      { key: 'all', label: 'Semua' },
+      { key: 'diproses', label: 'Diproses' },
+      { key: 'dikirim', label: 'Dikirim' },
     ];
 
     return (
@@ -140,14 +137,6 @@ const OrderListScreen = ({ navigation }) => {
             ]}
             onPress={() => handleFilterChange(filter.key)}
           >
-            <Icon
-              name={filter.icon}
-              size={18}
-              color={
-                selectedFilter === filter.key ? COLORS.white : COLORS.primary
-              }
-              style={styles.filterIcon}
-            />
             <Text
               style={[
                 styles.filterText,
@@ -172,7 +161,6 @@ const OrderListScreen = ({ navigation }) => {
         }
         activeOpacity={0.7}
       >
-        {/* Header */}
         <View style={styles.cardHeader}>
           <View style={styles.orderIdContainer}>
             <Icon name="receipt-outline" size={18} color={COLORS.primary} />
@@ -185,7 +173,6 @@ const OrderListScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Customer Info */}
         <View style={styles.cardBody}>
           <View style={styles.infoRow}>
             <Icon name="person" size={18} color={COLORS.text} />
@@ -217,7 +204,6 @@ const OrderListScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Footer */}
         <View style={styles.cardFooter}>
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabel}>Total</Text>
@@ -258,33 +244,69 @@ const OrderListScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Navigation Tabs */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity 
+          style={styles.tab}
+          onPress={() => {
+            setActiveTab('dashboard');
+            navigation.navigate('KurirHome');
+          }}
+        >
+          {activeTab === 'dashboard' && <View style={styles.tabIndicator} />}
+          <Text style={[
+            styles.tabText, 
+            activeTab === 'dashboard' && styles.tabTextActive
+          ]}>
+            Dashboard
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.tab}
+          onPress={() => setActiveTab('pesanan')}
+        >
+          {activeTab === 'pesanan' && <View style={styles.tabIndicator} />}
+          <Text style={[
+            styles.tabText, 
+            activeTab === 'pesanan' && styles.tabTextActive
+          ]}>
+            Pesanan
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.tab}
+          onPress={() => {
+            setActiveTab('riwayat');
+            navigation.navigate('KurirHistory');
+          }}
+        >
+          {activeTab === 'riwayat' && <View style={styles.tabIndicator} />}
+          <Text style={[
+            styles.tabText, 
+            activeTab === 'riwayat' && styles.tabTextActive
+          ]}>
+            Riwayat
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Title */}
+      <Text style={styles.pageTitle}>Pesanan Saya</Text>
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Icon name="search" size={20} color={COLORS.textLight} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Cari pesanan atau customer..."
+          placeholder="Cari Pesanan atau Customer.."
           value={searchQuery}
           onChangeText={handleSearch}
           placeholderTextColor={COLORS.textLight}
         />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')}>
-            <Icon name="close-circle" size={20} color={COLORS.textLight} />
-          </TouchableOpacity>
-        )}
+        <Icon name="search" size={20} color={COLORS.textLight} />
       </View>
 
       {/* Filter Chips */}
       {renderFilterChips()}
-
-      {/* Info Banner */}
-      <View style={styles.infoBanner}>
-        <Icon name="information-circle" size={18} color={COLORS.primary} />
-        <Text style={styles.infoText}>
-          {filteredOrders.length} pesanan ditemukan
-        </Text>
-      </View>
 
       {/* Orders List */}
       {filteredOrders.length === 0 ? (
@@ -324,13 +346,14 @@ const OrderListScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SIZES.lg,
+    backgroundColor: COLORS.white,
   },
   loadingText: {
     marginTop: SIZES.md,
@@ -355,68 +378,94 @@ const styles = StyleSheet.create({
     fontSize: SIZES.fontMd,
     fontWeight: 'bold',
   },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: SIZES.md,
+    marginTop: SIZES.md,
+    marginBottom: SIZES.md,
+    backgroundColor: COLORS.light,
+    borderRadius: SIZES.radiusFull,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: SIZES.sm,
+    alignItems: 'center',
+    borderRadius: SIZES.radiusFull,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.textLight,
+  },
+  tabTextActive: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radiusFull,
+    zIndex: -1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  pageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    textAlign: 'center',
+    marginBottom: SIZES.lg,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    margin: SIZES.md,
+    marginHorizontal: SIZES.md,
+    marginBottom: SIZES.md,
     paddingHorizontal: SIZES.md,
-    borderRadius: SIZES.radiusMd,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingVertical: SIZES.sm,
+    borderRadius: SIZES.radiusFull,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: SIZES.md,
-    paddingHorizontal: SIZES.sm,
-    fontSize: SIZES.fontMd,
+    fontSize: 14,
     color: COLORS.text,
   },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: SIZES.md,
-    marginBottom: SIZES.sm,
+    marginBottom: SIZES.md,
     gap: SIZES.sm,
   },
   filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SIZES.md,
+    paddingHorizontal: SIZES.lg,
     paddingVertical: SIZES.sm,
     borderRadius: SIZES.radiusFull,
     backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderColor: '#4CAF50',
   },
   filterChipActive: {
-    backgroundColor: COLORS.primary,
-  },
-  filterIcon: {
-    marginRight: SIZES.xs,
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
   },
   filterText: {
-    fontSize: SIZES.fontSm,
-    color: COLORS.primary,
+    fontSize: 13,
+    color: '#4CAF50',
     fontWeight: '600',
   },
   filterTextActive: {
     color: COLORS.white,
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
-    gap: SIZES.sm,
-  },
-  infoText: {
-    fontSize: SIZES.fontSm,
-    color: COLORS.primary,
-    fontWeight: '600',
   },
   listContent: {
     padding: SIZES.md,

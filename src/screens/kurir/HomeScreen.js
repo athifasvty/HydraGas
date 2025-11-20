@@ -20,6 +20,7 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const [statistics, setStatistics] = useState({
     total_hari_ini: 0,
@@ -128,20 +129,14 @@ const HomeScreen = ({ navigation }) => {
   };
 
   // Render statistic card
-  const renderStatCard = (icon, label, value, color, onPress) => (
-    <TouchableOpacity
-      style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 4 }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-        <Icon name={icon} size={28} color={color} />
+  const renderStatCard = (icon, label, value, color, bgColor) => (
+    <View style={[styles.statCard, { backgroundColor: bgColor }]}>
+      <View style={styles.statIconContainer}>
+        <Icon name={icon} size={32} color={color} />
       </View>
-      <View style={styles.statInfo}>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-      </View>
-    </TouchableOpacity>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
   );
 
   // Render recent order item
@@ -210,158 +205,163 @@ const HomeScreen = ({ navigation }) => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={[COLORS.primary]}
-        />
-      }
-    >
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Halo,</Text>
-          <Text style={styles.userName}>{user?.name || 'Kurir'}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>Selamat datang,</Text>
+          <Text style={styles.userName}>Kurir {user?.name || 'A'}!</Text>
         </View>
-        <View style={styles.headerBadge}>
-          <Icon name="bicycle" size={24} color={COLORS.white} />
-        </View>
+        <TouchableOpacity 
+          style={styles.profileButton}
+          onPress={() => navigation.navigate('KurirProfile')}
+        >
+          <Icon name="person-circle" size={40} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
-      {/* Statistics Cards */}
-      <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>Statistik Hari Ini</Text>
-        <View style={styles.statsGrid}>
-          {renderStatCard(
-            'calendar',
-            'Total Pesanan',
-            statistics.total_hari_ini,
-            COLORS.primary,
-            () => navigation.navigate('KurirOrders')
-          )}
-          {renderStatCard(
-            'bicycle',
-            'Pesanan Aktif',
-            statistics.pesanan_aktif,
-            COLORS.warning,
-            () => navigation.navigate('KurirOrders')
-          )}
-          {renderStatCard(
-            'checkmark-circle',
-            'Selesai',
-            statistics.selesai_hari_ini,
-            COLORS.success,
-            () => navigation.navigate('KurirHistory')
-          )}
-          {renderStatCard(
-            'wallet',
-            'Pendapatan',
-            formatCurrency(statistics.total_pendapatan),
-            '#9C27B0',
-            () => navigation.navigate('KurirHistory')
-          )}
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.actionsContainer}>
-        <Text style={styles.sectionTitle}>Menu Cepat</Text>
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('KurirOrders')}
-          >
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: COLORS.primary + '20' },
-              ]}
-            >
-              <Icon name="list" size={28} color={COLORS.primary} />
-            </View>
-            <Text style={styles.actionLabel}>Lihat Pesanan</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('KurirHistory')}
-          >
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: COLORS.success + '20' },
-              ]}
-            >
-              <Icon name="checkmark-done" size={28} color={COLORS.success} />
-            </View>
-            <Text style={styles.actionLabel}>Riwayat</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('KurirProfile')}
-          >
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: COLORS.info + '20' },
-              ]}
-            >
-              <Icon name="person" size={28} color={COLORS.info} />
-            </View>
-            <Text style={styles.actionLabel}>Profile</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Recent Orders */}
-      {recentOrders.length > 0 && (
-        <View style={styles.recentContainer}>
-          <View style={styles.recentHeader}>
-            <Text style={styles.sectionTitle}>Pesanan Terbaru</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('KurirOrders')}
-            >
-              <Text style={styles.seeAllText}>Lihat Semua</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.recentList}>
-            {recentOrders.map(renderRecentOrder)}
-          </View>
-        </View>
-      )}
-
-      {/* Empty State */}
-      {recentOrders.length === 0 && !loading && (
-        <View style={styles.emptyContainer}>
-          <Icon name="bicycle-outline" size={80} color={COLORS.gray} />
-          <Text style={styles.emptyText}>Belum Ada Pesanan Aktif</Text>
-          <Text style={styles.emptySubtext}>
-            Pesanan yang di-assign ke Anda akan muncul di sini
+      {/* Navigation Tabs */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity 
+          style={styles.tab}
+          onPress={() => setActiveTab('dashboard')}
+        >
+          {activeTab === 'dashboard' && <View style={styles.tabIndicator} />}
+          <Text style={[
+            styles.tabText, 
+            activeTab === 'dashboard' && styles.tabTextActive
+          ]}>
+            Dashboard
           </Text>
-        </View>
-      )}
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.tab}
+          onPress={() => {
+            setActiveTab('pesanan');
+            navigation.navigate('KurirOrders');
+          }}
+        >
+          {activeTab === 'pesanan' && <View style={styles.tabIndicator} />}
+          <Text style={[
+            styles.tabText, 
+            activeTab === 'pesanan' && styles.tabTextActive
+          ]}>
+            Pesanan
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.tab}
+          onPress={() => {
+            setActiveTab('riwayat');
+            navigation.navigate('KurirHistory');
+          }}
+        >
+          {activeTab === 'riwayat' && <View style={styles.tabIndicator} />}
+          <Text style={[
+            styles.tabText, 
+            activeTab === 'riwayat' && styles.tabTextActive
+          ]}>
+            Riwayat
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      {/* Bottom Spacing */}
-      <View style={{ height: SIZES.xl }} />
-    </ScrollView>
+      <ScrollView
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
+        {/* Statistics Section */}
+        <View style={styles.statsSection}>
+          <View style={styles.statsTitleContainer}>
+            <Icon name="stats-chart" size={20} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Statistik Hari Ini</Text>
+          </View>
+
+          <View style={styles.statsGrid}>
+            {renderStatCard(
+              'calendar',
+              'Total Pesanan',
+              statistics.total_hari_ini,
+              '#2196F3',
+              '#E3F2FD'
+            )}
+            {renderStatCard(
+              'bicycle',
+              'Pesanan Aktif',
+              statistics.pesanan_aktif,
+              '#FF9800',
+              '#FFF3E0'
+            )}
+            {renderStatCard(
+              'checkmark-circle',
+              'Selesai',
+              statistics.selesai_hari_ini,
+              '#4CAF50',
+              '#E8F5E9'
+            )}
+            {renderStatCard(
+              'wallet',
+              'Pendapatan',
+              formatCurrency(statistics.total_pendapatan),
+              '#9C27B0',
+              '#F3E5F5'
+            )}
+          </View>
+        </View>
+
+        {/* Recent Orders */}
+        {recentOrders.length > 0 && (
+          <View style={styles.recentContainer}>
+            <View style={styles.recentHeader}>
+              <Text style={styles.sectionTitle}>Pesanan Aktif</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('KurirOrders')}
+              >
+                <Text style={styles.seeAllText}>Lihat Semua</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.recentList}>
+              {recentOrders.map(renderRecentOrder)}
+            </View>
+          </View>
+        )}
+
+        {/* Empty State */}
+        {recentOrders.length === 0 && !loading && (
+          <View style={styles.emptyContainer}>
+            <Icon name="bicycle-outline" size={80} color={COLORS.gray} />
+            <Text style={styles.emptyText}>Belum Ada Pesanan Aktif</Text>
+            <Text style={styles.emptySubtext}>
+              Pesanan yang di-assign ke Anda akan muncul di sini
+            </Text>
+          </View>
+        )}
+
+        {/* Bottom Spacing */}
+        <View style={{ height: SIZES.xl }} />
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SIZES.lg,
+    backgroundColor: COLORS.white,
   },
   loadingText: {
     marginTop: SIZES.md,
@@ -389,46 +389,93 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: SIZES.md,
-    backgroundColor: COLORS.primary,
+    paddingTop: SIZES.lg,
+    backgroundColor: COLORS.white,
+  },
+  headerLeft: {
+    flex: 1,
   },
   greeting: {
-    fontSize: SIZES.fontSm,
-    color: COLORS.white,
-    opacity: 0.9,
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginBottom: 2,
   },
   userName: {
-    fontSize: SIZES.fontXl,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  headerBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statsContainer: {
-    padding: SIZES.md,
-  },
-  sectionTitle: {
-    fontSize: SIZES.fontLg,
+    fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
+  },
+  profileButton: {
+    padding: SIZES.xs,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: SIZES.md,
+    marginTop: SIZES.md,
     marginBottom: SIZES.md,
+    backgroundColor: COLORS.light,
+    borderRadius: SIZES.radiusFull,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: SIZES.sm,
+    alignItems: 'center',
+    borderRadius: SIZES.radiusFull,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.textLight,
+  },
+  tabTextActive: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radiusFull,
+    zIndex: -1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  statsSection: {
+    padding: SIZES.md,
+  },
+  statsTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SIZES.md,
+    gap: SIZES.xs,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
   statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: SIZES.md,
   },
   statCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
+    width: '47%',
     padding: SIZES.md,
     borderRadius: SIZES.radiusMd,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -436,63 +483,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: SIZES.radiusMd,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SIZES.md,
-  },
-  statInfo: {
-    flex: 1,
-  },
-  statValue: {
-    fontSize: SIZES.fontXxl,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  statLabel: {
-    fontSize: SIZES.fontSm,
-    color: COLORS.textLight,
-    marginTop: 2,
-  },
-  actionsContainer: {
-    padding: SIZES.md,
-    paddingTop: 0,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: SIZES.md,
-  },
-  actionCard: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    padding: SIZES.md,
-    borderRadius: SIZES.radiusMd,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  actionIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: SIZES.radiusMd,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: SIZES.sm,
   },
-  actionLabel: {
-    fontSize: SIZES.fontSm,
-    fontWeight: '600',
+  statLabel: {
+    fontSize: 13,
+    color: COLORS.text,
+    marginBottom: SIZES.xs,
+    textAlign: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: COLORS.text,
     textAlign: 'center',
   },
   recentContainer: {
     padding: SIZES.md,
-    paddingTop: 0,
   },
   recentHeader: {
     flexDirection: 'row',
@@ -512,11 +518,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: SIZES.radiusMd,
     padding: SIZES.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   orderHeader: {
     flexDirection: 'row',

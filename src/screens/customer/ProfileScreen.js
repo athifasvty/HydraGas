@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,39 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
+import { getRiwayat } from '../../api/customer';
 import { COLORS, SIZES } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
 
-const ProfileScreen = ({ navigation }) => { // ✅ Tambah navigation prop
+const ProfileScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const [totalPesanan, setTotalPesanan] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch total pesanan
+  useEffect(() => {
+    const fetchTotalPesanan = async () => {
+      try {
+        const response = await getRiwayat();
+        if (response.success && response.data.statistik) {
+          const total = 
+            (response.data.statistik.total_selesai || 0) + 
+            (response.data.statistik.total_dibatalkan || 0);
+          setTotalPesanan(total);
+        }
+      } catch (error) {
+        console.log('Error fetching total pesanan:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTotalPesanan();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -39,94 +64,93 @@ const ProfileScreen = ({ navigation }) => { // ✅ Tambah navigation prop
     );
   };
 
-  // ✅ Handler untuk Edit Profile
   const handleEditProfile = () => {
     navigation.navigate('EditProfile');
   };
 
-  // ✅ Handler untuk Change Password
   const handleChangePassword = () => {
     navigation.navigate('ChangePassword');
   };
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header Card */}
-      <View style={styles.headerCard}>
-        <View style={styles.avatarContainer}>
-          <Icon name="person" size={50} color={COLORS.white} />
-        </View>
-        <Text style={styles.name}>{user?.name || 'User'}</Text>
-        <Text style={styles.username}>@{user?.username || 'username'}</Text>
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>
-            {user?.role === 'customer' ? 'Customer' : 'Kurir'}
-          </Text>
-        </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Icon name="arrow-back" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>PROFILE</Text>
       </View>
 
-      {/* Info Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Informasi Akun</Text>
-
-        {/* Username */}
-        <View style={styles.infoItem}>
-          <View style={styles.infoLeft}>
-            <Icon name="at-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.infoLabel}>Username</Text>
-          </View>
-          <Text style={styles.infoValue}>{user?.username || '-'}</Text>
+      {/* Profile Card */}
+      <View style={styles.profileCard}>
+        <View style={styles.profileInfo}>
+          <Text style={styles.name}>{user?.name || 'User'}</Text>
+          <Text style={styles.username}>{user?.username || 'username'}</Text>
         </View>
 
-        {/* Phone */}
-        <View style={styles.infoItem}>
-          <View style={styles.infoLeft}>
-            <Icon name="call-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.infoLabel}>Telepon</Text>
+        {/* Info Items */}
+        <View style={styles.infoContainer}>
+          {/* Address */}
+          <View style={styles.infoRow}>
+            <Icon name="location" size={18} color={COLORS.textLight} />
+            <Text style={styles.infoText}>{user?.address || 'Belum diisi'}</Text>
           </View>
-          <Text style={styles.infoValue}>{user?.phone || 'Belum diisi'}</Text>
+
+          {/* Phone */}
+          <View style={styles.infoRow}>
+            <Icon name="call" size={18} color={COLORS.textLight} />
+            <Text style={styles.infoText}>{user?.phone || 'Belum diisi'}</Text>
+          </View>
+
+          {/* Username */}
+          <View style={styles.infoRow}>
+            <Icon name="at" size={18} color={COLORS.textLight} />
+            <Text style={styles.infoText}>{user?.username || '-'}</Text>
+          </View>
+
+          {/* Member Since */}
+          <View style={styles.infoRow}>
+            <Icon name="calendar" size={18} color={COLORS.textLight} />
+            <Text style={styles.infoText}>
+              Bergabung: {user?.created_at ? formatDate(user.created_at) : '-'}
+            </Text>
+          </View>
+
+          {/* Role Badge */}
+          <View style={styles.infoRow}>
+            <Icon name="person" size={18} color={COLORS.textLight} />
+            <Text style={styles.infoText}>
+              {user?.role === 'customer' ? 'Customer' : 'Kurir'}
+            </Text>
+          </View>
         </View>
 
-        {/* Address */}
-        <View style={styles.infoItem}>
-          <View style={styles.infoLeft}>
-            <Icon name="location-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.infoLabel}>Alamat</Text>
-          </View>
-          <Text style={styles.infoValue} numberOfLines={2}>
-            {user?.address || 'Belum diisi'}
-          </Text>
-        </View>
-
-        {/* Member Since */}
-        <View style={styles.infoItem}>
-          <View style={styles.infoLeft}>
-            <Icon name="calendar-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.infoLabel}>Bergabung</Text>
-          </View>
-          <Text style={styles.infoValue}>
-            {user?.created_at ? formatDate(user.created_at) : '-'}
-          </Text>
-        </View>
+        {/* Edit Button */}
+        <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
+          <Text style={styles.editButtonText}>Ubah</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Total Orders Card */}
+      <TouchableOpacity 
+        style={styles.ordersCard}
+        onPress={() => navigation.navigate('CustomerOrders')}
+      >
+        <Text style={styles.ordersText}>Total Pesanan</Text>
+        {loading ? (
+          <ActivityIndicator size="small" color={COLORS.white} />
+        ) : (
+          <Text style={styles.ordersCount}>{totalPesanan}</Text>
+        )}
+      </TouchableOpacity>
 
       {/* Menu Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Pengaturan</Text>
-
-        {/* Edit Profile - ✅ NAVIGASI KE EDIT PROFILE */}
-        <TouchableOpacity style={styles.menuItem} onPress={handleEditProfile}>
-          <View style={styles.menuLeft}>
-            <Icon name="create-outline" size={24} color={COLORS.text} />
-            <Text style={styles.menuText}>Edit Profile</Text>
-          </View>
-          <Icon name="chevron-forward" size={20} color={COLORS.gray} />
-        </TouchableOpacity>
-
-        {/* Change Password - ✅ NAVIGASI KE CHANGE PASSWORD */}
+      <View style={styles.menuSection}>
+        {/* Change Password */}
         <TouchableOpacity style={styles.menuItem} onPress={handleChangePassword}>
           <View style={styles.menuLeft}>
-            <Icon name="lock-closed-outline" size={24} color={COLORS.text} />
+            <Icon name="lock-closed-outline" size={22} color={COLORS.text} />
             <Text style={styles.menuText}>Ganti Password</Text>
           </View>
           <Icon name="chevron-forward" size={20} color={COLORS.gray} />
@@ -143,7 +167,7 @@ const ProfileScreen = ({ navigation }) => { // ✅ Tambah navigation prop
           }
         >
           <View style={styles.menuLeft}>
-            <Icon name="information-circle-outline" size={24} color={COLORS.text} />
+            <Icon name="information-circle-outline" size={22} color={COLORS.text} />
             <Text style={styles.menuText}>Tentang Aplikasi</Text>
           </View>
           <Icon name="chevron-forward" size={20} color={COLORS.gray} />
@@ -151,12 +175,9 @@ const ProfileScreen = ({ navigation }) => { // ✅ Tambah navigation prop
       </View>
 
       {/* Logout Button */}
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Icon name="log-out-outline" size={24} color={COLORS.white} />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutText}>Logout</Text>
+      </TouchableOpacity>
 
       {/* Version Info */}
       <View style={styles.versionContainer}>
@@ -169,51 +190,105 @@ const ProfileScreen = ({ navigation }) => { // ✅ Tambah navigation prop
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
   },
-  headerCard: {
+  header: {
     backgroundColor: COLORS.primary,
-    paddingVertical: SIZES.xl * 2,
-    paddingHorizontal: SIZES.lg,
+    paddingVertical: SIZES.lg,
+    paddingHorizontal: SIZES.md,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderBottomLeftRadius: SIZES.radiusXl,
-    borderBottomRightRadius: SIZES.radiusXl,
-  },
-  avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: SIZES.radiusFull,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: SIZES.md,
+    padding: SIZES.xs,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.white,
+  },
+  profileCard: {
+    backgroundColor: COLORS.white,
+    margin: SIZES.md,
+    borderRadius: SIZES.radiusMd,
+    padding: SIZES.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileInfo: {
     marginBottom: SIZES.md,
   },
   name: {
-    fontSize: SIZES.fontXxl,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.white,
-    marginBottom: SIZES.xs,
+    color: COLORS.text,
+    marginBottom: 4,
   },
   username: {
-    fontSize: SIZES.fontMd,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
+  infoContainer: {
     marginBottom: SIZES.md,
   },
-  roleBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.radiusFull,
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SIZES.sm,
   },
-  roleText: {
+  infoText: {
+    fontSize: 13,
+    color: COLORS.text,
+    marginLeft: SIZES.sm,
+    flex: 1,
+  },
+  editButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SIZES.sm,
+    paddingHorizontal: SIZES.lg,
+    borderRadius: SIZES.radiusFull,
+    alignSelf: 'flex-end',
+  },
+  editButtonText: {
     color: COLORS.white,
-    fontSize: SIZES.fontSm,
+    fontSize: 14,
     fontWeight: '600',
   },
-  section: {
-    backgroundColor: COLORS.white,
-    marginTop: SIZES.md,
+  ordersCard: {
+    backgroundColor: COLORS.primary,
     marginHorizontal: SIZES.md,
+    marginBottom: SIZES.md,
+    borderRadius: SIZES.radiusMd,
+    padding: SIZES.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  ordersText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.white,
+  },
+  ordersCount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.white,
+  },
+  menuSection: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: SIZES.md,
+    marginBottom: SIZES.md,
     borderRadius: SIZES.radiusMd,
     padding: SIZES.md,
     shadowColor: '#000',
@@ -221,37 +296,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: SIZES.fontLg,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: SIZES.md,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SIZES.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  infoLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: SIZES.fontMd,
-    color: COLORS.text,
-    marginLeft: SIZES.sm,
-    fontWeight: '500',
-  },
-  infoValue: {
-    fontSize: SIZES.fontMd,
-    color: COLORS.textLight,
-    flex: 1,
-    textAlign: 'right',
   },
   menuItem: {
     flexDirection: 'row',
@@ -266,28 +310,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   menuText: {
-    fontSize: SIZES.fontMd,
+    fontSize: 15,
     color: COLORS.text,
     marginLeft: SIZES.md,
     fontWeight: '500',
   },
   logoutButton: {
-    backgroundColor: COLORS.danger,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    marginHorizontal: SIZES.md,
+    marginBottom: SIZES.md,
+    borderRadius: SIZES.radiusFull,
     paddingVertical: SIZES.md,
-    borderRadius: SIZES.radiusMd,
+    borderWidth: 2,
+    borderColor: COLORS.danger,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   logoutText: {
-    color: COLORS.white,
-    fontSize: SIZES.fontMd,
+    color: COLORS.danger,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: SIZES.sm,
   },
   versionContainer: {
     alignItems: 'center',
-    paddingVertical: SIZES.xl,
+    paddingVertical: SIZES.lg,
   },
   versionText: {
     fontSize: SIZES.fontSm,
